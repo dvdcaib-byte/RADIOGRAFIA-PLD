@@ -1,0 +1,265 @@
+<title>Matriz de Actividades Vulnerables</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #EEF1EE;
+    --paper-raised: #F8F8F3;
+    --ink: #16202B;
+    --ink-soft: #3C4750;
+    --line: #D6DBD4;
+    --gold: #93641F;
+    --gold-soft: #E4D6BC;
+    --brick: #9B3226;
+    --brick-soft: #EFD7D2;
+    --teal: #2F5D57;
+    --teal-soft: #D6E3E0;
+    --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 8px 24px rgba(22,32,43,0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12181F;
+      --paper-raised: #1B232C;
+      --ink: #EAE7DE;
+      --ink-soft: #B7BDB6;
+      --line: #303A39;
+      --gold: #D3A55C;
+      --gold-soft: #3A2F1C;
+      --brick: #D4776A;
+      --brick-soft: #3A2320;
+      --teal: #7FAFA6;
+      --teal-soft: #1E2E2C;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #12181F;
+    --paper-raised: #1B232C;
+    --ink: #EAE7DE;
+    --ink-soft: #B7BDB6;
+    --line: #303A39;
+    --gold: #D3A55C;
+    --gold-soft: #3A2F1C;
+    --brick: #D4776A;
+    --brick-soft: #3A2320;
+    --teal: #7FAFA6;
+    --teal-soft: #1E2E2C;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: clamp(40px, 6vw, 90px) clamp(20px, 6vw, 60px) 100px;
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 18px;
+    font-weight: 500;
+  }
+
+  h1, h2 {
+    font-family: 'Newsreader', Georgia, serif;
+    text-wrap: balance;
+    margin: 0;
+    line-height: 1.1;
+  }
+  h1 { font-size: clamp(2rem, 4.2vw, 3.2rem); font-weight: 600; }
+  h2 { font-size: clamp(1.4rem, 2.4vw, 1.9rem); font-weight: 500; margin-top: 64px; }
+
+  .title-rule {
+    width: 64px;
+    height: 3px;
+    background: var(--gold);
+    border-radius: 2px;
+    margin-top: 24px;
+  }
+
+  .lede {
+    font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+    color: var(--ink-soft);
+    max-width: 800px;
+    line-height: 1.6;
+    text-align: justify;
+    margin-top: 20px;
+  }
+
+  .section-note {
+    margin-top: 18px;
+    max-width: 800px;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    text-align: justify;
+  }
+
+  p { line-height: 1.65; }
+
+  .table-wrap { margin-top: 28px; overflow-x: auto; }
+  table.data-table {
+    width: 100%;
+    min-width: 640px;
+    border-collapse: collapse;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  table.data-table caption {
+    caption-side: bottom;
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    padding: 12px 18px 0;
+  }
+  table.data-table th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+  }
+  table.data-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    text-align: justify;
+    vertical-align: top;
+    color: var(--ink);
+  }
+  table.data-table tbody tr:last-child td { border-bottom: none; }
+  table.data-table td.mono, table.data-table th.mono {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  table.data-table td.always {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    color: var(--brick);
+    white-space: nowrap;
+  }
+  table.data-table tbody tr:nth-child(even) { background: var(--paper); }
+
+  .footer-note {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    max-width: 800px;
+  }
+  .footer-note a { color: var(--teal); }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Herramienta de referencia — Prevención de Lavado de Dinero</p>
+  <h1>Matriz de Actividades Vulnerables y Restricciones de Efectivo</h1>
+  <div class="title-rule"></div>
+  <p class="lede">Las 16 fracciones del artículo 17 de la LFPIORPI (qué se considera Actividad Vulnerable y cuándo genera Aviso) y los 8 supuestos del artículo 32 (qué operaciones no se pueden pagar en efectivo). Todos los montos están expresados en veces el valor diario de la UMA — no en pesos, porque la UMA se actualiza cada año.</p>
+
+  <h2>Actividades Vulnerables — identificación y Aviso (art. 17)</h2>
+  <p class="section-note">"Umbral de identificación" es el monto a partir del cual la actividad se considera Actividad Vulnerable. "Umbral de Aviso" es el monto a partir del cual, además, debe presentarse Aviso ante la Secretaría. Cuando ambos coinciden, se indica una sola cifra.</p>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th class="mono">Fracc.</th><th>Actividad</th><th>Umbral de identificación</th><th>Umbral de Aviso</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono">I</td><td>Juegos con apuesta, concursos, sorteos</td><td class="mono">≥325 UMA por operación</td><td class="mono">≥645 UMA</td></tr>
+        <tr><td class="mono">II</td><td>Tarjetas de servicio/crédito, prepagadas, instrumentos de almacenamiento de valor</td><td class="mono">≥805 UMA (crédito) / ≥645 UMA (prepagadas)</td><td class="mono">≥1,285 UMA (crédito) / ≥645 UMA (prepagadas)</td></tr>
+        <tr><td class="mono">III</td><td>Cheques de viajero (emisores no bancarios)</td><td class="mono">≥645 UMA</td><td class="mono">mismo umbral</td></tr>
+        <tr><td class="mono">IV</td><td>Mutuo, préstamos o créditos (no financieros)</td><td class="mono">≥1,605 UMA</td><td class="mono">mismo umbral</td></tr>
+        <tr><td class="mono">V</td><td>Construcción o desarrollo inmobiliario (compraventa)</td><td class="mono">≥8,025 UMA</td><td class="mono">mismo umbral</td></tr>
+        <tr><td class="mono">V Bis</td><td>Recepción de recursos para Desarrollo Inmobiliario</td><td class="mono">≥8,025 UMA</td><td class="mono">mismo umbral</td></tr>
+        <tr><td class="mono">VI</td><td>Metales preciosos, piedras preciosas, joyas, relojes</td><td class="mono">≥805 UMA</td><td class="mono">≥1,605 UMA</td></tr>
+        <tr><td class="mono">VII</td><td>Obras de arte (subasta o comercialización)</td><td class="mono">≥2,410 UMA</td><td class="mono">≥4,815 UMA</td></tr>
+        <tr><td class="mono">VIII</td><td>Vehículos aéreos, marítimos o terrestres</td><td class="mono">≥3,210 UMA</td><td class="mono">≥6,420 UMA</td></tr>
+        <tr><td class="mono">IX</td><td>Blindaje de vehículos o inmuebles</td><td class="mono">≥2,410 UMA</td><td class="mono">≥4,815 UMA</td></tr>
+        <tr><td class="mono">X</td><td>Traslado o custodia de dinero o valores</td><td class="mono">—</td><td class="mono">≥3,210 UMA, o <span class="always">siempre</span> si no se puede determinar el monto</td></tr>
+        <tr><td class="mono">XI</td><td>Servicios profesionales independientes (abogados, contadores) en operaciones a nombre del cliente</td><td class="mono">—</td><td class="always">Siempre que se realice la operación</td></tr>
+        <tr><td class="mono">XII</td><td>Fe pública (notarios y corredores públicos) — ver detalle abajo</td><td class="mono">—</td><td class="mono">Ver Tabla 1-B</td></tr>
+        <tr><td class="mono">XIII</td><td>Donativos a Asociaciones y Sociedades sin fines de lucro</td><td class="mono">≥1,605 UMA</td><td class="mono">≥3,210 UMA</td></tr>
+        <tr><td class="mono">XIV</td><td>Comercio exterior (agentes/agencias aduanales), mercancías específicas</td><td class="mono">—</td><td class="always">Siempre, sin importar el valor</td></tr>
+        <tr><td class="mono">XV</td><td>Uso o goce de inmuebles (arrendamiento)</td><td class="mono">≥1,605 UMA mensual</td><td class="mono">≥3,210 UMA mensual</td></tr>
+        <tr><td class="mono">XVI</td><td>Intercambio de activos virtuales</td><td class="mono">—</td><td class="mono">≥210 UMA por operación, o ≥4 UMA por comisión</td></tr>
+      </tbody>
+      <caption>Fuente: LFPIORPI, art. 17 (texto vigente, última reforma DOF 16-07-2025).</caption>
+    </table>
+  </div>
+
+  <h2>Tabla 1-B — Detalle de la fracción XII (fe pública)</h2>
+  <p class="section-note">La más relevante para una notaría: no depende del volumen del cliente, sino del tipo de acto.</p>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Apartado</th><th>Acto</th><th>Umbral de Aviso</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>A) Notarios</td><td>Transmisión o constitución de derechos reales sobre inmuebles</td><td class="mono">≥8,000 UMA</td></tr>
+        <tr><td>A) Notarios</td><td>Poderes irrevocables (administración o dominio)</td><td class="always">Siempre</td></tr>
+        <tr><td>A) Notarios</td><td>Constitución de personas morales / compraventa de acciones o partes sociales</td><td class="always">Siempre</td></tr>
+        <tr><td>A) Notarios</td><td>Fideicomisos traslativos de dominio o de garantía</td><td class="mono">≥4,000 UMA</td></tr>
+        <tr><td>A) Notarios</td><td>Mutuo o crédito</td><td class="always">Siempre</td></tr>
+        <tr><td>B) Corredores</td><td>Avalúos</td><td class="mono">≥8,025 UMA</td></tr>
+        <tr><td>B) Corredores</td><td>Personas morales mercantiles, fideicomisos, mutuo mercantil</td><td class="always">Siempre</td></tr>
+      </tbody>
+      <caption>Fuente: LFPIORPI, art. 17, fracc. XII.</caption>
+    </table>
+  </div>
+
+  <h2>Operaciones con pago prohibido en efectivo (art. 32)</h2>
+  <p class="section-note">Régimen distinto al de Actividades Vulnerables: aquí no se trata de dar Aviso, sino de que <strong>está prohibido</strong> pagar en efectivo, moneda extranjera o metales preciosos por arriba del umbral — incluso si el pago se canaliza a través de una Entidad Financiera.</p>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th class="mono">Fracc.</th><th>Operación</th><th>Umbral prohibido en efectivo</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono">I</td><td>Constitución o transmisión de derechos reales sobre inmuebles</td><td class="mono">≥8,025 UMA</td></tr>
+        <tr><td class="mono">II</td><td>Transmisión de propiedad de vehículos</td><td class="mono">≥3,210 UMA</td></tr>
+        <tr><td class="mono">III</td><td>Relojes, joyería, metales/piedras preciosas, obras de arte</td><td class="mono">≥3,210 UMA</td></tr>
+        <tr><td class="mono">IV</td><td>Boletos de juegos/apuestas/sorteos y pago de premios</td><td class="mono">≥3,210 UMA</td></tr>
+        <tr><td class="mono">V</td><td>Blindaje de vehículos o inmuebles</td><td class="mono">≥3,210 UMA</td></tr>
+        <tr><td class="mono">VI</td><td>Transmisión de acciones o partes sociales</td><td class="mono">≥3,210 UMA</td></tr>
+        <tr><td class="mono">VII</td><td>Uso o goce (arrendamiento) de los bienes de las fracc. I, II y V</td><td class="mono">≥3,210 UMA mensual</td></tr>
+        <tr><td class="mono">VIII</td><td>Consignación de pago relacionada con las fracc. I–VII</td><td class="mono">según el umbral de cada fracción</td></tr>
+      </tbody>
+      <caption>Fuente: LFPIORPI, art. 32 (texto vigente, última reforma DOF 16-07-2025).</caption>
+    </table>
+  </div>
+
+  <p class="section-note"><strong>Nota clave (art. 33):</strong> el fedatario debe identificar la forma de pago cuando la operación sea ≥8,025 UMA. Si es menor y ya se pagó antes de firmar el instrumento, basta una declaración bajo protesta de decir verdad de la persona Cliente o Usuaria.</p>
+
+  <div class="footer-note">
+    Fuente primaria: Ley Federal para la Prevención e Identificación de Operaciones con Recursos de Procedencia Ilícita, texto vigente (última reforma DOF 16-07-2025), arts. 17, 32 y 33. Consulta el texto completo en <a href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPIORPI.pdf" target="_blank" rel="noopener noreferrer">diputados.gob.mx</a>. Esta matriz no incluye los montos en pesos porque dependen del valor diario de la UMA vigente en el año de la operación — verifícalo antes de aplicar cualquier umbral.
+  </div>
+
+</div>

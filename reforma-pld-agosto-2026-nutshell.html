@@ -1,0 +1,1133 @@
+<title>Radiografía Normativa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #EEF1EE;
+    --paper-raised: #F8F8F3;
+    --ink: #16202B;
+    --ink-soft: #3C4750;
+    --line: #D6DBD4;
+    --gold: #93641F;
+    --gold-soft: #E4D6BC;
+    --brick: #9B3226;
+    --brick-soft: #EFD7D2;
+    --teal: #2F5D57;
+    --teal-soft: #D6E3E0;
+    --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 8px 24px rgba(22,32,43,0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12181F;
+      --paper-raised: #1B232C;
+      --ink: #EAE7DE;
+      --ink-soft: #B7BDB6;
+      --line: #303A39;
+      --gold: #D3A55C;
+      --gold-soft: #3A2F1C;
+      --brick: #D4776A;
+      --brick-soft: #3A2320;
+      --teal: #7FAFA6;
+      --teal-soft: #1E2E2C;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #12181F;
+    --paper-raised: #1B232C;
+    --ink: #EAE7DE;
+    --ink-soft: #A9AFA9;
+    --line: #303A39;
+    --gold: #D3A55C;
+    --gold-soft: #3A2F1C;
+    --brick: #D4776A;
+    --brick-soft: #3A2320;
+    --teal: #7FAFA6;
+    --teal-soft: #1E2E2C;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .deck {
+    scroll-snap-type: y proximity;
+    overflow-y: auto;
+    height: 100vh;
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .deck { scroll-behavior: auto; }
+  }
+
+  section.slide {
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(56px, 9vh, 110px) clamp(20px, 8vw, 120px);
+    position: relative;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 18px;
+    font-weight: 500;
+  }
+
+  h1, h2 {
+    font-family: 'Newsreader', Georgia, serif;
+    text-wrap: balance;
+    margin: 0;
+    line-height: 1.08;
+    max-width: 860px;
+  }
+
+  h1 { font-size: clamp(2.4rem, 5.6vw, 4.6rem); font-weight: 600; }
+  h2 { font-size: clamp(1.9rem, 4vw, 3.1rem); font-weight: 500; }
+
+  .title-rule {
+    width: 64px;
+    height: 3px;
+    background: var(--gold);
+    border-radius: 2px;
+    margin-top: 28px;
+  }
+
+  .lede {
+    font-size: clamp(1.15rem, 1.6vw, 1.35rem);
+    color: var(--ink-soft);
+    max-width: 860px;
+    line-height: 1.6;
+    text-align: justify;
+    margin-top: 20px;
+  }
+
+  p { line-height: 1.65; }
+
+  /* --- Nav dots --- */
+  nav.dots {
+    position: fixed;
+    right: clamp(12px, 3vw, 28px);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 50;
+  }
+  nav.dots button {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink-soft);
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s, background 0.2s, transform 0.2s;
+  }
+  nav.dots button:hover { opacity: 1; transform: scale(1.15); }
+  nav.dots button.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    opacity: 1;
+  }
+  nav.dots button:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+  }
+
+  .slide-num {
+    position: absolute;
+    top: clamp(20px, 4vw, 40px);
+    right: clamp(20px, 6vw, 60px);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* --- Portada --- */
+  .cover-mark {
+    width: 46px;
+    height: 46px;
+    margin-bottom: 28px;
+    color: var(--gold);
+  }
+
+  /* --- Timeline horizontal (marco normativo) --- */
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    max-width: 860px;
+    margin-top: 40px;
+    position: relative;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    top: 7px;
+    left: 4%;
+    right: 4%;
+    height: 1px;
+    background: var(--line);
+  }
+  .t-node { position: relative; padding-top: 30px; }
+  .t-node::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--paper-raised);
+    border: 2px solid var(--gold);
+  }
+  .t-node.final::before { background: var(--gold); }
+  .t-date {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--gold);
+    font-weight: 500;
+  }
+  .t-title { font-weight: 600; margin-top: 4px; font-size: 1.05rem; }
+  .t-desc { color: var(--ink-soft); font-size: 1rem; text-align: justify; margin-top: 6px; line-height: 1.5; }
+
+  @media (max-width: 760px) {
+    .timeline { grid-template-columns: 1fr; gap: 30px; }
+    .timeline::before { left: 7px; right: auto; top: 0; bottom: 0; width: 1px; height: auto; }
+    .t-node { padding-left: 30px; padding-top: 0; }
+    .t-node::before { top: 4px; left: 0; }
+  }
+
+  /* --- Statement slide --- */
+  .statement .before { color: var(--ink-soft); }
+  .statement .after { color: var(--gold); }
+  .statement-note {
+    margin-top: 20px;
+    max-width: 860px;
+    color: var(--ink-soft);
+    font-size: clamp(1.15rem, 1.6vw, 1.35rem);
+    line-height: 1.6;
+    text-align: justify;
+    border-left: 3px solid var(--brick);
+    padding-left: 20px;
+  }
+  .statement-note strong { color: var(--ink); font-weight: 600; }
+
+  /* --- Tabla de datos profesional (compartida) --- */
+  .table-wrap { margin-top: 40px; max-width: 860px; }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  table.data-table caption {
+    caption-side: bottom;
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    padding: 14px 20px 0;
+  }
+  table.data-table th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    text-align: left;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+  }
+  table.data-table td {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--line);
+    font-size: 1rem;
+    line-height: 1.5;
+    text-align: justify;
+    vertical-align: top;
+    color: var(--ink);
+  }
+  table.data-table tbody tr:last-child td { border-bottom: none; }
+  table.data-table td.mono, table.data-table th.mono {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .fund-cite {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.88rem;
+    color: var(--gold);
+    font-weight: 600;
+  }
+  .fund-gloss {
+    display: block;
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+  .badge {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 5px 11px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .badge.I { background: var(--gold-soft); color: var(--gold); }
+  .badge.II { background: var(--teal-soft); color: var(--teal); }
+  .badge.III { background: var(--brick-soft); color: var(--brick); }
+
+  @media (max-width: 700px) {
+    table.data-table thead { display: none; }
+    table.data-table, table.data-table tbody, table.data-table tr, table.data-table td {
+      display: block;
+      width: 100%;
+    }
+    table.data-table tr { padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    table.data-table tbody tr:last-child { border-bottom: none; }
+    table.data-table td { border-bottom: none; padding: 7px 0; }
+    table.data-table td::before {
+      content: attr(data-label);
+      display: block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-soft);
+      margin-bottom: 4px;
+    }
+  }
+
+  /* --- Beneficiario controlador --- */
+  .bc-compare {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 20px;
+    margin-top: 40px;
+    max-width: 640px;
+  }
+  .bc-box { text-align: center; }
+  .bc-pct {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: clamp(2.6rem, 6vw, 4rem);
+    font-weight: 500;
+  }
+  .bc-box.before .bc-pct { color: var(--ink-soft); }
+  .bc-box.after .bc-pct { color: var(--gold); }
+  .bc-label { font-size: 0.9rem; color: var(--ink-soft); margin-top: 6px; }
+  .bc-arrow { color: var(--ink-soft); font-size: 1.5rem; }
+
+  .bc-sub {
+    margin-top: 16px;
+    font-size: 1rem;
+    text-align: justify;
+    color: var(--ink-soft);
+    max-width: 860px;
+  }
+
+  /* --- Notario impact --- */
+  .impact-list {
+    margin-top: 40px;
+    display: grid;
+    gap: 14px;
+    max-width: 860px;
+  }
+  .impact-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px 18px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    align-items: flex-start;
+  }
+  .impact-mark {
+    color: var(--brick);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .impact-text strong { font-weight: 600; }
+  .impact-text { font-size: 1rem; text-align: justify; color: var(--ink-soft); }
+
+  .tech-note {
+    margin-top: 32px;
+    padding: 18px 20px;
+    border-left: 3px solid var(--gold);
+    background: var(--gold-soft);
+    border-radius: 0 4px 4px 0;
+    font-size: 1rem;
+    text-align: justify;
+    max-width: 860px;
+  }
+  .tech-note strong { color: var(--ink); }
+
+  /* --- Cierre --- */
+  .checklist { margin-top: 40px; display: flex; flex-direction: column; gap: 4px; max-width: 860px; }
+  .check-item {
+    display: flex;
+    gap: 14px;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .check-box {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--gold);
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+  .also-see {
+    margin-top: 32px;
+    padding: 18px 20px;
+    border-left: 3px solid var(--teal);
+    background: var(--teal-soft);
+    border-radius: 0 4px 4px 0;
+    max-width: 860px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .also-see-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--teal);
+  }
+  .also-see-link {
+    color: var(--ink);
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px dotted var(--teal);
+  }
+  .also-see-link:hover { color: var(--teal); }
+
+  /* --- Enlaces a fundamentos --- */
+  .ref-link {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    cursor: pointer;
+    text-align: inherit;
+    border-bottom: 1px dotted currentColor;
+  }
+  .ref-link:hover { color: var(--teal); }
+  .ref-link.inline { display: inline; color: var(--gold); }
+  .fund-cite.ref-link {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--gold);
+  }
+
+  /* --- Hoja oculta: Fuentes y fundamentos --- */
+  .refs-toggle {
+    position: fixed;
+    left: clamp(16px, 4vw, 32px);
+    bottom: clamp(16px, 4vw, 32px);
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+    padding: 11px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .refs-toggle:hover { border-color: var(--gold); color: var(--gold); }
+  .refs-toggle .mark { font-size: 1rem; color: var(--gold); }
+
+  .refs-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 14, 18, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    z-index: 70;
+  }
+  .refs-backdrop.open { opacity: 1; pointer-events: auto; }
+
+  .refs-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(440px, 92vw);
+    background: var(--paper-raised);
+    border-left: 1px solid var(--line);
+    z-index: 71;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -8px 0 32px rgba(0,0,0,0.2);
+  }
+  .refs-panel.open { transform: translateX(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .refs-panel, .refs-backdrop { transition: none; }
+  }
+
+  .refs-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .refs-header h3 {
+    font-family: 'Newsreader', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.4rem;
+    margin: 0;
+  }
+  .refs-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    padding: 6px 4px;
+    flex-shrink: 0;
+  }
+  .refs-close:hover { color: var(--brick); }
+
+  .refs-body { overflow-y: auto; padding: 4px 24px 32px; flex: 1; }
+  .refs-group-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gold);
+    margin: 22px 0 8px;
+  }
+  .refs-entry {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    scroll-margin-top: 20px;
+    transition: background 0.4s;
+  }
+  .refs-entry:last-child { border-bottom: none; }
+  .refs-entry.highlight { background: var(--gold-soft); margin: 0 -14px; padding: 14px; border-radius: 4px; }
+  .refs-cite {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--gold);
+  }
+  .refs-gloss { font-size: 0.92rem; text-align: justify; color: var(--ink-soft); margin-top: 4px; line-height: 1.5; }
+  .refs-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 9px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--teal);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .refs-link:hover { border-bottom-color: var(--teal); }
+
+  .refs-quote-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--teal);
+    margin-top: 12px;
+  }
+  .refs-quote {
+    margin-top: 6px;
+    padding: 12px 14px;
+    background: var(--paper);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 4px 4px 0;
+    font-size: 0.87rem;
+    line-height: 1.65;
+    color: var(--ink);
+  }
+  .refs-quote p { margin: 0 0 10px; text-align: justify; }
+  .refs-quote p:last-child { margin-bottom: 0; }
+  .refs-quote-note {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+</style>
+
+<div class="deck" id="deck">
+
+  <nav class="dots" id="dots" aria-label="Navegación de secciones"></nav>
+
+  <!-- 1. PORTADA -->
+  <section class="slide" id="s1">
+    <svg class="cover-mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M24 12v24M14 18l10-6 10 6M14 30l10 6 10-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <p class="eyebrow">Boletín Ejecutivo — Prevención de Lavado de Dinero</p>
+    <h1>Radiografía de las modificaciones a las Reglas de Carácter General</h1>
+    <div class="title-rule"></div>
+    <p class="lede">Acuerdo 115/2026 de la Ley Federal para la Prevención e Identificación de Operaciones con Recursos de Procedencia Ilícita (LFPIORPI), publicado en el Diario Oficial de la Federación el 7 de agosto de 2026. Lo que cambia, desde cuándo, y qué le toca hacer a quien realiza una Actividad Vulnerable.</p>
+  </section>
+
+  <!-- 2. MARCO NORMATIVO -->
+  <section class="slide" id="s2">
+    <span class="slide-num">02 / 08</span>
+    <p class="eyebrow">El marco normativo</p>
+    <h2>Tres piezas de un mismo mecanismo</h2>
+    <p class="lede">Las obligaciones no nacen el 7 de agosto: nacen en la Ley de 2025 y permanecían inexigibles a falta de reglas. El Reglamento tiende el puente; las Reglas de Carácter General (RCG) entregan la metodología, los plazos y la evidencia que faltaban.</p>
+    <div class="timeline">
+      <div class="t-node">
+        <div class="t-date">16 jul 2025</div>
+        <div class="t-title"><button class="ref-link inline" data-ref="instr-ley" type="button">La Ley</button></div>
+        <div class="t-desc">Reforma a la LFPIORPI, <button class="ref-link inline" data-ref="ley-18" type="button">art. 18 fracc. VII–XI</button> — las obligaciones de metodología, capacitación, selección de personal y auditoría. En vigor, pero inexigible sin reglas.</div>
+      </div>
+      <div class="t-node">
+        <div class="t-date">27 mar 2026</div>
+        <div class="t-title"><button class="ref-link inline" data-ref="instr-reglamento" type="button">El Reglamento</button></div>
+        <div class="t-desc">Desarrolla avisos, Personas Políticamente Expuestas (PEP) y activos virtuales.</div>
+      </div>
+      <div class="t-node">
+        <div class="t-date">7 ago 2026</div>
+        <div class="t-title"><button class="ref-link inline" data-ref="instr-reglas" type="button">Las Reglas (Acuerdo 115/2026)</button></div>
+        <div class="t-desc">Hacen operativas las obligaciones: metodología, plazos y evidencia exigida.</div>
+      </div>
+      <div class="t-node final">
+        <div class="t-date">30 nov 2026</div>
+        <div class="t-title">Entrada en vigor general</div>
+        <div class="t-desc">Arranca el calendario de cumplimiento, escalonado hasta 2029.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. EL CAMBIO DE FONDO -->
+  <section class="slide" id="s3">
+    <span class="slide-num">03 / 08</span>
+    <p class="eyebrow">El cambio de fondo</p>
+    <h2 class="statement"><span class="before">De vigilar montos</span><br>a <span class="after">demostrar riesgo</span></h2>
+    <p class="statement-note">Se transita de un régimen de <strong>listas y umbrales</strong> — bastaba requisitar formatos y vigilar montos — a uno de <strong>gestión de riesgo</strong>, donde hay que documentar, medir y someterse a verificación independiente. Para la mayoría de los sujetos obligados, esto no es ajustar el expediente actual: es <strong>construirlo de nuevo</strong>.</p>
+  </section>
+
+  <!-- 4. LOS 5 PILARES -->
+  <section class="slide" id="s4">
+    <span class="slide-num">04 / 08</span>
+    <p class="eyebrow">Lo que hay que construir</p>
+    <h2>Cinco pilares nuevos</h2>
+    <div class="table-wrap">
+      <table class="data-table">
+        <colgroup>
+          <col style="width: 20%">
+          <col style="width: 50%">
+          <col style="width: 30%">
+        </colgroup>
+        <caption>RCG = Reglas de Carácter General de la LFPIORPI (Acuerdo 115/2026, DOF 07/08/2026), la norma que este boletín resume.</caption>
+        <thead>
+          <tr><th>Pilar</th><th>En qué consiste</th><th>Fundamento</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-label="Pilar"><strong>Metodología de riesgo</strong></td>
+            <td data-label="En qué consiste">Identifica, mide y mitiga el riesgo con 4 elementos mínimos. Revisión en un plazo no mayor a 12 meses; conservación de 10 años.</td>
+            <td data-label="Fundamento"><button class="fund-cite ref-link" data-ref="rcg-capIIQuater" type="button">RCG, Cap. II Quáter</button><span class="fund-gloss">el capítulo que define cómo debe medirse el riesgo</span></td>
+          </tr>
+          <tr>
+            <td data-label="Pilar"><strong>Clasificación de clientes</strong></td>
+            <td data-label="En qué consiste">Mínimo 3 grados — bajo, medio, alto — con reevaluación semestral y expediente proporcional al riesgo.</td>
+            <td data-label="Fundamento"><button class="fund-cite ref-link" data-ref="rcg-capIIIBisTer" type="button">RCG, Caps. III Bis y III Ter</button><span class="fund-gloss">clasificación de riesgo y conocimiento del cliente</span></td>
+          </tr>
+          <tr>
+            <td data-label="Pilar"><strong>Manual de Políticas Internas</strong></td>
+            <td data-label="En qué consiste">14 contenidos mínimos: deja de ser un documento discrecional y se vuelve el instrumento de gobierno.</td>
+            <td data-label="Fundamento"><button class="fund-cite ref-link" data-ref="rcg-art37bis" type="button">RCG, Cap. X, art. 37 Bis</button><span class="fund-gloss">el artículo que fija el contenido obligatorio del Manual</span></td>
+          </tr>
+          <tr>
+            <td data-label="Pilar"><strong>Capacitación y selección</strong></td>
+            <td data-label="En qué consiste">Programa anual con instructor de al menos 5 años de experiencia acreditable, más declaración firmada por empleado.</td>
+            <td data-label="Fundamento"><button class="fund-cite ref-link" data-ref="rcg-art39bis" type="button">RCG, Cap. XII, art. 39 Bis</button><span class="fund-gloss">el artículo que crea esta obligación</span></td>
+          </tr>
+          <tr>
+            <td data-label="Pilar"><strong>Auditoría anual con dictamen</strong></td>
+            <td data-label="En qué consiste">Evalúa <em>efectividad</em>, no solo existencia formal. Incluye proyección económica de multas por hallazgo.</td>
+            <td data-label="Fundamento"><button class="fund-cite ref-link" data-ref="rcg-capXIV" type="button">RCG, Cap. XIV</button><span class="fund-gloss">regula la auditoría y su dictamen</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5. BENEFICIARIO CONTROLADOR -->
+  <section class="slide" id="s5">
+    <span class="slide-num">05 / 08</span>
+    <p class="eyebrow">Beneficiario Controlador</p>
+    <h2>Siempre hay una persona física detrás — ahora hay que nombrarla</h2>
+    <div class="bc-compare">
+      <div class="bc-box before">
+        <div class="bc-pct">50%</div>
+        <div class="bc-label">umbral de voto, antes</div>
+      </div>
+      <div class="bc-arrow">→</div>
+      <div class="bc-box after">
+        <div class="bc-pct">25%</div>
+        <div class="bc-label">umbral de voto, ahora</div>
+      </div>
+    </div>
+    <p class="bc-sub">Y solo puede ser <strong>persona física, en última instancia</strong> — obliga a ascender la cadena de titularidad hasta el último eslabón humano. Se alinea con el estándar del <strong>GAFI</strong> (Grupo de Acción Financiera Internacional, el organismo que fija los criterios antilavado a nivel global) y con el <button class="ref-link inline" data-ref="cff-32bter" type="button">art. 32-B Ter del Código Fiscal de la Federación</button> — la misma cifra que el SAT ya exige para efectos fiscales.</p>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <colgroup>
+          <col style="width: 14%">
+          <col style="width: 86%">
+        </colgroup>
+        <caption><button class="ref-link inline" data-ref="rcg-art23quinquies" type="button">Artículo 23 Quinquies</button> de las RCG — el orden se agota de manera sucesiva: solo se pasa al siguiente criterio cuando el anterior no permite identificar a nadie.</caption>
+        <thead>
+          <tr><th class="mono">Orden</th><th>Criterio para identificar al Beneficiario Controlador</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono" data-label="Orden">1º</td>
+            <td data-label="Criterio">Persona física que posea, directa o indirectamente, <strong>25% o más</strong> del capital social.</td>
+          </tr>
+          <tr>
+            <td class="mono" data-label="Orden">2º</td>
+            <td data-label="Criterio">Quien ejerza el control por otros medios: <strong>estrategia, decisiones, políticas principales</strong>.</td>
+          </tr>
+          <tr>
+            <td class="mono" data-label="Orden">3º</td>
+            <td data-label="Criterio">Quien ocupe la posición de <strong>funcionario de mayor grado o alta dirección</strong>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6. CALENDARIO -->
+  <section class="slide" id="s6">
+    <span class="slide-num">06 / 08</span>
+    <p class="eyebrow">Calendario de cumplimiento</p>
+    <h2>Tres etapas, hasta 2029</h2>
+    <div class="table-wrap">
+      <table class=”data-table”>
+        <colgroup>
+          <col style=”width: 16%”>
+          <col style=”width: 60%”>
+          <col style=”width: 24%”>
+        </colgroup>
+        <caption>“Etapa” agrupa las obligaciones por naturaleza: estructural (entra en vigor todo el marco), operativa (arrancan capacitación y clasificación de clientes) y tecnológica (sistemas, PEP y auditoría).</caption>
+        <thead>
+          <tr><th class="mono">Fecha</th><th>Qué se vuelve exigible</th><th>Etapa</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono" data-label="Fecha">30 nov 2026</td>
+            <td data-label="Qué se vuelve exigible">Entrada en vigor general: PEP, Manual, mecanismos de prevención, auditoría como obligación, activos virtuales y anexos.</td>
+            <td data-label="Etapa"><span class="badge I">I · Estructural</span></td>
+          </tr>
+          <tr>
+            <td class="mono" data-label="Fecha">ene–dic 2027</td>
+            <td data-label="Qué se vuelve exigible">Primer periodo anual de capacitación (<button class="ref-link inline" data-ref="rcg-art39bis" type="button">art. 39 Bis</button>).</td>
+            <td data-label="Etapa"><span class="badge II">II · Operativa</span></td>
+          </tr>
+          <tr>
+            <td class="mono" data-label="Fecha">1 mar 2027</td>
+            <td data-label="Qué se vuelve exigible">Clasificación de riesgo, Manual con metodología incorporada, y selección de personal para nuevas contrataciones.</td>
+            <td data-label="Etapa"><span class="badge II">II · Operativa</span></td>
+          </tr>
+          <tr>
+            <td class="mono" data-label="Fecha">30 may 2027</td>
+            <td data-label="Qué se vuelve exigible">Activos virtuales: actualización de datos de alta.</td>
+            <td data-label="Etapa"><span class="badge III">III · Tecnológica</span></td>
+          </tr>
+          <tr>
+            <td class="mono" data-label="Fecha">1 jun 2027</td>
+            <td data-label="Qué se vuelve exigible">Mecanismos automatizados (<button class="ref-link inline" data-ref="rcg-capXIII" type="button">Capítulo XIII</button>) operando.</td>
+            <td data-label="Etapa"><span class="badge III">III · Tecnológica</span></td>
+          </tr>
+          <tr>
+            <td class="mono" data-label="Fecha">30 jul 2027</td>
+            <td data-label="Qué se vuelve exigible">La Secretaría implementa el buzón electrónico (<button class="ref-link inline" data-ref="rcg-art6" type="button">art. 6</button>).</td>
+            <td data-label="Etapa"><span class="badge III">III · Tecnológica</span></td>
+          </tr>
+          <tr>
+            <td class="mono" data-label="Fecha">30 ago 2027</td>
+            <td data-label="Qué se vuelve exigible">Consulta PEP 2.0 disponible para PEP nacionales.</td>
+            <td data-label="Etapa"><span class="badge III">III · Tecnológica</span></td>
+          </tr>
+          <tr>
+            <td class="mono" data-label="Fecha">2028 → mar 2029</td>
+            <td data-label="Qué se vuelve exigible">Primer ejercicio auditable; entrega del primer dictamen a más tardar el 30 de marzo de 2029.</td>
+            <td data-label="Etapa"><span class="badge III">III · Tecnológica</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 7. IMPACTO NOTARIAL -->
+  <section class="slide" id="s7">
+    <span class="slide-num">07 / 08</span>
+    <p class="eyebrow">Qué significa para un notario</p>
+    <h2><button class="ref-link inline" data-ref="ley-17-xii" type="button">Art. 17, fracc. XII</button>: Actividad Vulnerable</h2>
+    <p class="lede">El art. 17, fracción XII (Apartados A y B) clasifica la prestación de servicios de fe pública como Actividad Vulnerable — lo que sujeta a notarios y corredores públicos al régimen general de las Reglas: metodología de riesgo, manual, capacitación, mecanismos automatizados y auditoría, igual que cualquier otro sujeto obligado. En el día a día, esto se traduce en:</p>
+    <div class="impact-list">
+      <div class="impact-item">
+        <span class="impact-mark">→</span>
+        <span class="impact-text"><strong>Identificación directa</strong> del cliente — ya no se puede delegar por completo en terceros.</span>
+      </div>
+      <div class="impact-item">
+        <span class="impact-mark">→</span>
+        <span class="impact-text"><strong>Avisos por sospecha en 24 horas</strong>, incluso si la operación nunca se celebró.</span>
+      </div>
+      <div class="impact-item">
+        <span class="impact-mark">→</span>
+        <span class="impact-text"><strong>Expediente proporcional al Grado de Riesgo</strong>: simplificado, único, o reforzado con cuestionarios de origen y destino de recursos.</span>
+      </div>
+      <div class="impact-item">
+        <span class="impact-mark">→</span>
+        <span class="impact-text"><strong>Verificación anual</strong> de que los expedientes con relación de negocios vigente sigan completos y actualizados.</span>
+      </div>
+    </div>
+    <div class="tech-note">
+      <strong>Nota técnica sobre el <button class="ref-link inline" data-ref="rcg-art34ter" type="button">art. 34 Ter</button>:</strong> no aplica a notarios ni corredores públicos (Apartados A y B) — ustedes ya están cubiertos por el régimen general. Extiende estos mismos capítulos a los servidores públicos con fe pública y a las personas facilitadoras de MASC (Apartados C y D), que no son notarías.
+    </div>
+  </section>
+
+  <!-- 8. CIERRE -->
+  <section class="slide" id="s8">
+    <span class="slide-num">08 / 08</span>
+    <p class="eyebrow">Próximos pasos</p>
+    <h2>Acciones a seguir</h2>
+    <div class="checklist">
+      <div class="check-item"><span class="check-box"></span><span>Metodología propia de evaluación de riesgo por área de negocio</span></div>
+      <div class="check-item"><span class="check-box"></span><span>Manual de Políticas Internas con los 14 contenidos del <button class="ref-link inline" data-ref="rcg-art37bis" type="button">art. 37 Bis</button></span></div>
+      <div class="check-item"><span class="check-box"></span><span>Programa de capacitación anual y procedimiento de selección de personal</span></div>
+      <div class="check-item"><span class="check-box"></span><span>Preparación para la auditoría anual — primer dictamen exigible en marzo de 2029</span></div>
+    </div>
+    <div class="also-see">
+      <span class="also-see-label">Consulta también</span>
+      <a class="also-see-link" href="matriz-actividades-vulnerables.html">Matriz de Actividades Vulnerables y Restricciones de Efectivo →</a>
+    </div>
+  </section>
+
+</div>
+
+<button class="refs-toggle" id="refsToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="refsPanel">
+  <span class="mark">§</span> Fuentes y fundamentos
+</button>
+<div class="refs-backdrop" id="refsBackdrop"></div>
+<aside class="refs-panel" id="refsPanel" aria-hidden="true" aria-label="Fuentes y fundamentos legales">
+  <div class="refs-header">
+    <h3>Fuentes y fundamentos</h3>
+    <button class="refs-close" id="refsClose" type="button">Cerrar ✕</button>
+  </div>
+  <div class="refs-body">
+
+    <div class="refs-group-label">Los tres instrumentos</div>
+
+    <div class="refs-entry" id="ref-instr-ley">
+      <div class="refs-cite">Decreto de reforma a la LFPIORPI</div>
+      <div class="refs-gloss">DOF, 16 de julio de 2025. Crea las obligaciones de metodología de riesgo, capacitación, selección de personal y auditoría (art. 18, fracc. VII–XI), vigentes pero inexigibles hasta que existieran reglas.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5763161&fecha=16/07/2025" target="_blank" rel="noopener noreferrer">Ver publicación en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-instr-reglamento">
+      <div class="refs-cite">Decreto de reforma al Reglamento de la LFPIORPI</div>
+      <div class="refs-gloss">DOF, 27 de marzo de 2026. Desarrolla avisos, Personas Políticamente Expuestas y activos virtuales; es el puente entre la Ley y las Reglas.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5783547&fecha=27/03/2026" target="_blank" rel="noopener noreferrer">Ver publicación en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-instr-reglas">
+      <div class="refs-cite">Acuerdo 115/2026 — Reglas de Carácter General</div>
+      <div class="refs-gloss">DOF, 7 de agosto de 2026. Es la norma que este boletín resume: aporta la metodología, los plazos y la evidencia que la Ley dejó pendientes.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver publicación en el DOF ↗</a>
+    </div>
+
+    <div class="refs-group-label">LFPIORPI (la Ley)</div>
+
+    <div class="refs-entry" id="ref-ley-18">
+      <div class="refs-cite">Art. 18, fracc. VII–XI</div>
+      <div class="refs-gloss">Las fracciones que crean, dentro de la Ley, las obligaciones de metodología de riesgo, capacitación, selección de personal y auditoría.</div>
+      <div class="refs-quote-label">Texto literal — LFPIORPI, art. 18</div>
+      <div class="refs-quote">
+        <p><strong>VII.</strong> Llevar a cabo una evaluación con un enfoque basado en Riesgos, en términos de las reglas de carácter general que al efecto emita la Secretaría, que les permita identificar, analizar, entender y mitigar sus Riesgos, así como los de las personas Clientes o Usuarias;</p>
+        <p><strong>VIII.</strong> Elaborar y observar un Manual de Políticas Internas que contenga los criterios, medidas y procedimientos necesarios para cumplir con las obligaciones previstas en la presente Ley, incluyendo las que les permitan identificar y dar seguimiento a los actos u operaciones que lleven a cabo con Personas Políticamente Expuestas, en los términos de las reglas de carácter general que emita la Secretaría.</p>
+        <p><strong>IX.</strong> Desarrollar procesos para la selección de personal, así como adoptar programas de capacitación anuales, dirigidos a quienes integran su órgano de administración o persona administradora única, directivas, personas representantes encargadas de cumplimiento y empleadas o empleados que tengan relación directa con las personas Clientes o Usuarias, según corresponda, que contemplen la difusión de la Ley y su normativa secundaria, así como del Manual de Políticas Internas señalado en la fracción VIII de este artículo, en términos de las reglas de carácter general que emita la Secretaría;</p>
+        <p><strong>X.</strong> Contar con mecanismos automatizados que les permitan llevar a cabo un monitoreo permanente de los actos u operaciones que realicen con las personas Clientes o Usuarias para identificar aquellas que no se encuentren dentro del perfil transaccional de las personas Clientes o Usuarias conforme a las reglas de carácter general que emita la Secretaría o que deban acumularse conforme al penúltimo párrafo del artículo 17 de la Ley [...], y</p>
+        <p><strong>XI.</strong> Contar con la revisión por parte del área de auditoría interna o de una persona auditora externa independiente cuando el riesgo de quien realiza la Actividad Vulnerable sea bajo o medio, o bien, de una persona auditora externa independiente cuando el riesgo [...] sea alto, según la evaluación realizada conforme a la fracción VII de este artículo, para evaluar y dictaminar en un año calendario la efectividad del cumplimiento de las obligaciones previstas en la Ley y demás disposiciones aplicables.</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del texto publicado en el DOF el 16 de julio de 2025. Los [...] marcan cortes menores por espacio.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5763161&fecha=16/07/2025" target="_blank" rel="noopener noreferrer">Ver decreto completo en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-ley-17-xii">
+      <div class="refs-cite">Art. 17, fracción XII</div>
+      <div class="refs-gloss">La fracción que clasifica la prestación de servicios de fe pública —ante notarios y corredores públicos— como Actividad Vulnerable. Varios de sus párrafos sí fueron tocados por la reforma de 2025, según se indica en el propio texto.</div>
+      <div class="refs-quote-label">Texto literal — LFPIORPI, art. 17, fracc. XII</div>
+      <div class="refs-quote">
+        <p><strong>XII.</strong> La prestación de servicios de fe pública, en los términos siguientes:</p>
+        <p><strong>A.</strong> Tratándose de actos u operaciones celebrados ante las y los notarios públicos, las protocolizaciones, así como cualquier otro acto que conlleve a su formalización:</p>
+        <p><strong>a)</strong> La transmisión o constitución de derechos reales sobre inmuebles, salvo las garantías que se constituyan en favor de instituciones del sistema financiero u organismos públicos de vivienda. Estas operaciones serán objeto de Aviso ante la Secretaría cuando el precio pactado, el valor catastral, el valor comercial del inmueble o el monto garantizado, el que resulte más alto, sea igual o superior al equivalente a ocho mil veces el valor diario de la UMA;</p>
+        <p><strong>b)</strong> El otorgamiento de poderes para actos de administración o dominio otorgados con carácter irrevocable. Las operaciones previstas en este inciso siempre serán objeto de Aviso;</p>
+        <p><strong>c)</strong> La constitución de personas morales, su modificación patrimonial derivada de aumento o disminución de capital social, fusión o escisión, así como la compraventa de acciones y partes sociales de tales personas. Las operaciones previstas en este inciso, siempre serán objeto de aviso;</p>
+        <p><strong>d)</strong> La constitución o modificación de fideicomisos traslativos de dominio o de garantía, salvo los que se constituyan para garantizar algún crédito a favor de instituciones del sistema financiero u organismos públicos de vivienda. Serán objeto de Aviso cuando las operaciones se realicen por un monto igual o superior al equivalente a cuatro mil veces el valor diario de la UMA, y</p>
+        <p><strong>e)</strong> El otorgamiento de contratos de mutuo o crédito, con o sin garantía, en los que el acreedor no forme parte del sistema financiero o no sea un organismo público de vivienda. Las operaciones previstas en este inciso, siempre serán objeto de Aviso.</p>
+        <p><strong>B.</strong> Tratándose de actos u operaciones celebrados ante las y los corredores públicos, [protocolizaciones equivalentes: avalúos, constitución de personas morales mercantiles, fideicomisos y mutuo mercantil].</p>
+        <p><strong>C.</strong> Por lo que se refiere a los servidores públicos a los que las leyes les confieran la facultad de dar fe pública en el ejercicio de sus atribuciones previstas en el artículo 3, fracción VII de esta Ley.</p>
+        <p><strong>D.</strong> Tratándose de las personas facilitadoras públicas y privadas a que se refiere la Ley General de Mecanismos Alternativos de Solución de Controversias, las previstas en el apartado A de esta fracción, en los términos que se señalan.</p>
+      </div>
+      <div class="refs-quote-note">Extraído del texto vigente publicado por la Cámara de Diputados (última reforma DOF 16-07-2025). El Apartado B se resume por espacio; el texto completo está en la fuente.</div>
+      <a class="refs-link" href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPIORPI.pdf" target="_blank" rel="noopener noreferrer">Ver texto vigente de la Ley ↗</a>
+    </div>
+
+    <div class="refs-group-label">Reglas de Carácter General — capítulos y artículos citados</div>
+
+    <div class="refs-entry" id="ref-rcg-capIIQuater">
+      <div class="refs-cite">Capítulo II Quáter</div>
+      <div class="refs-gloss">El capítulo que define cómo debe diseñarse y medirse la metodología de evaluación de riesgos. Va del art. 10 Septies al 10 Septies 6; aquí el artículo que lo abre y define.</div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 10 Septies</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 10 Septies.-</strong> Para el cumplimiento de lo previsto en el artículo 18, fracción VII de la Ley, quienes realicen Actividades Vulnerables deberán diseñar e implementar una metodología para llevar a cabo una evaluación de Riesgos derivado de los actos u operaciones que realicen en términos del artículo 17 de la Ley, así como de las personas Clientes o Usuarias con quienes lleven a cabo dichos actos u operaciones, sus transacciones y canales de envío o distribución.</p>
+        <p>El diseño de la metodología [...] deberá estar establecido en su Manual de Políticas Internas, o bien, en algún otro documento o manual [...], y deberá establecer y describir todos los procesos que se llevarán a cabo para la identificación, análisis, entendimiento, medición y mitigación de los Riesgos, para lo cual deberán tomar en cuenta los factores de Riesgo que para tal efecto hayan identificado, así como la información que resulte aplicable dado el contexto de cada Actividad Vulnerable contenida en la Evaluación Nacional de Riesgos y sus actualizaciones, que la UIF les dé a conocer.</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del Acuerdo 115/2026 en el DOF. El resto del capítulo (arts. 10 Septies 1 a 10 Septies 6) detalla los indicadores, la revisión periódica y la facultad de objeción del SAT.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver Acuerdo 115/2026 en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-rcg-capIIIBisTer">
+      <div class="refs-cite">Capítulos III Bis y III Ter</div>
+      <div class="refs-gloss">Clasificación de riesgo del cliente (III Bis) y las medidas de conocimiento que corresponden a cada grado (III Ter). Los artículos que abren cada capítulo:</div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 23 Bis (abre el Cap. III Bis)</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 23 Bis.-</strong> Quienes realicen Actividades Vulnerables deberán contar con un modelo de evaluación de Riesgos, que deberá ser coherente con la metodología a que se refiere el Capítulo II Quáter de estas reglas, para clasificar a sus Clientes o Usuarias por Grado de Riesgo individual, el cual deberá estar establecido en su Manual de Políticas Internas.</p>
+        <p>Para la clasificación [...] deberán establecer, al menos, tres clasificaciones, consistentes en Grados de Riesgo bajo, medio y alto, pudiendo establecer tantos Grados de Riesgo intermedios como consideren necesario.</p>
+      </div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 23 Ter (abre el Cap. III Ter)</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 23 Ter.-</strong> Para el cumplimiento de lo previsto en el artículo 18, fracción I de la Ley, quienes realicen Actividades Vulnerables están obligadas a elaborar y observar una política de conocimiento de sus Clientes o Usuarias en términos de estas reglas, que deberá incluir, al menos: <strong>I.</strong> Las políticas, criterios, medidas, procedimientos y controles para mitigar los Riesgos [...]. <strong>II.</strong> Los procedimientos para dar seguimiento y monitorear los actos u operaciones [...]. <strong>III.</strong> Los procedimientos para el debido conocimiento del Perfil transaccional de cada Cliente o Usuaria. <strong>IV.</strong> Los supuestos en que los actos [se apartan del Perfil transaccional y proceden a revisión].</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del Acuerdo 115/2026 en el DOF. Cada capítulo continúa con artículos numerados (23 Bis 1, 23 Ter 1, etc.) que desarrollan el detalle operativo.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver Acuerdo 115/2026 en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-rcg-art23quinquies">
+      <div class="refs-cite">Art. 23 Quinquies</div>
+      <div class="refs-gloss">Fija el orden de prelación para identificar al Beneficiario Controlador de una persona moral.</div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 23 Quinquies</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 23 Quinquies.-</strong> [...] Para la identificación del Beneficiario Controlador de Clientes o Usuarias que sean personas morales, se deberá considerar por lo menos el siguiente orden de prelación:</p>
+        <p><strong>I.</strong> Identificar a la persona física o grupo de personas físicas que directa o indirectamente, adquiera, sea titular o posea por cualquier título legal, el 25% o más de la composición accionaria o parte social del capital social del Cliente o Usuaria.</p>
+        <p><strong>II.</strong> Identificar a la persona física o grupo de personas físicas que tenga el control del Cliente o Usuaria por otros medios distintos a la fracción anterior y sus funciones se encuentren relacionadas con la estrategia, toma de decisiones y la dirección de las principales políticas del Cliente o Usuaria.</p>
+        <p><strong>III.</strong> Identificar a la persona física o grupo de personas que ocupa la posición de funcionario administrativo de mayor grado o de alta dirección.</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del Acuerdo 115/2026 en el DOF.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver Acuerdo 115/2026 en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-rcg-art37bis">
+      <div class="refs-cite">Capítulo X, art. 37 Bis</div>
+      <div class="refs-gloss">El artículo que fija los 14 contenidos mínimos obligatorios del Manual de Políticas Internas.</div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 37 Bis</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 37 Bis.-</strong> El Manual de Políticas Internas deberá contener, por lo menos, lo siguiente:</p>
+        <p><strong>I.</strong> Los criterios para la identificación y conocimiento de Clientes o Usuarias; <strong>II.</strong> Los mecanismos de clasificación de Riesgo; <strong>III.</strong> Las medidas de debida diligencia aplicables conforme al Grado de Riesgo de cada Cliente o Usuaria; <strong>IV.</strong> Los procedimientos para la identificación y seguimiento reforzado de Personas Políticamente Expuestas; <strong>V.</strong> Los mecanismos para detectar actos u operaciones que se aparten del Perfil transaccional del Cliente o Usuaria; <strong>VI.</strong> Los procedimientos para la presentación de Avisos e Informes en los tiempos y formas que establece la Ley; <strong>VII.</strong> Los mecanismos de conservación de información y documentación; <strong>VIII.</strong> Los mecanismos para dar seguimiento y acumular actos u operaciones [...] cuyo monto por suma acumulada alcance o supere los umbrales establecidos [...]; <strong>IX.</strong> Los mecanismos utilizados para identificar a las personas publicadas en las listas que emiten autoridades nacionales u organismos internacionales [...]; <strong>X.</strong> Las funciones y responsabilidades de la persona Representante Encargada de Cumplimiento a que se refiere el artículo 20 de la Ley; <strong>XI.</strong> Los programas de capacitación; <strong>XII.</strong> Los mecanismos de control interno, supervisión y auditoría; <strong>XIII.</strong> Las medidas para garantizar la confidencialidad de la información, y <strong>XIV.</strong> Los procedimientos para la actualización del propio Manual de Políticas Internas.</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del Acuerdo 115/2026 en el DOF. El capítulo continúa con los arts. 37 Bis 1 (grupos empresariales), 37 Bis 2 (exención por escrito) y 37 Bis 3 (facultad del SAT de ordenar modificaciones).</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver Acuerdo 115/2026 en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-rcg-art39bis">
+      <div class="refs-cite">Capítulo XII, art. 39 Bis</div>
+      <div class="refs-gloss">El artículo que crea la obligación de capacitación anual y de procedimientos de selección de personal.</div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 39 Bis</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 39 Bis.-</strong> Quienes realicen Actividades Vulnerables deberán implementar programas de capacitación, dirigidos a los miembros de sus respectivos consejos de administración, al administrador único o su equivalente, directivos, funcionarios, a la persona Representante Encargada de Cumplimiento y, en todo caso, a sus empleados que laboren en áreas de atención al público, participen en la identificación o conocimiento del Cliente o Usuaria, en el envío de Avisos o realice actividades de auditoría.</p>
+        <p><strong>I.</strong> La impartición de cursos, talleres o programas, por lo menos una vez al año [...]. <strong>II.</strong> Información sobre técnicas, métodos y tendencias para prevenir y detectar operaciones [...]. <strong>III.</strong> Para efectos del presente artículo, quienes impartan la capacitación deberán contar y acreditar experiencia de por lo menos cinco años en materia de prevención de lavado de dinero y delitos relacionados a los que se refieren estas reglas.</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del Acuerdo 115/2026 en el DOF. El capítulo continúa con los arts. 39 Bis 1 (conservación de evidencia diez años) y 39 Bis 2 (procedimientos de selección de personal y declaración firmada).</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver Acuerdo 115/2026 en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-rcg-capXIII">
+      <div class="refs-cite">Capítulo XIII</div>
+      <div class="refs-gloss">Regula los mecanismos automatizados: las funciones mínimas que debe tener el sistema que administra expedientes, umbrales y alertas. El capítulo tiene un solo artículo, el 41.</div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 41</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 41.-</strong> Los mecanismos automatizados a que se refiere el artículo 18, fracción X de la Ley deberán ser razonablemente adecuados al volumen, naturaleza, complejidad de los actos u operaciones realizados y al Riesgo de quienes realicen Actividades Vulnerables y deberán desarrollar por lo menos las siguientes funciones:</p>
+        <p><strong>I.</strong> Conservar y actualizar, así como permitir la consulta de los datos [...] del respectivo expediente único de identificación de cada persona Cliente o Usuaria. <strong>II.</strong> Agrupar en una base consolidada los actos u operaciones realizados con el mismo Cliente o Usuaria [...]. <strong>III.</strong> Proveer la información que se deberá incluir en la metodología elaborada conforme al Capítulo II Quáter. <strong>IV.</strong> Ejecutar el modelo de evaluación de Riesgos [...], conservando los registros históricos [...] por un periodo no menor a diez años. <strong>V.</strong> Ejecutar un sistema de alertas respecto de actos u operaciones con Clientes de Grado de Riesgo alto, Personas Políticamente Expuestas o de jurisdicciones de riesgo. <strong>VI.</strong> Monitoreo de uso de efectivo y metales preciosos para el cumplimiento de lo previsto en el artículo 32 de la Ley.</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del Acuerdo 115/2026 en el DOF.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver Acuerdo 115/2026 en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-rcg-capXIV">
+      <div class="refs-cite">Capítulo XIV</div>
+      <div class="refs-gloss">Regula la auditoría anual: quién puede practicarla, qué debe contener el dictamen y cómo se califica cada obligación. Aquí el artículo que abre el capítulo y crea la obligación:</div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 42</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 42.-</strong> Quienes realicen Actividades Vulnerables deberán mantener medidas de control que incluya la revisión de un auditor ya sea de su área de auditoría interna, o bien, de una persona auditora externa independiente, que evalúe y dictamine del primero de enero al treinta y uno de diciembre de cada año, la efectividad del cumplimiento de la Ley, su Reglamento y de las presentes reglas.</p>
+        <p>Los resultados de dicha revisión deberán ser presentados al consejo de administración, al administrador único, a la dirección general u órganos equivalentes según corresponda o, en su caso, directamente a la persona física que realice la Actividad Vulnerable, a manera de dictamen a fin de evaluar la eficacia operativa de las medidas implementadas y dar seguimiento a los programas de acción correctiva que en su caso resulten aplicables.</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del Acuerdo 115/2026 en el DOF. El capítulo continúa con los arts. 43 a 51: quién dictamina según el nivel de riesgo, requisitos del auditor externo, contenido del dictamen (art. 47), calificación de cumplimiento (art. 48) y plazos de entrega y conservación.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver Acuerdo 115/2026 en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-rcg-art6">
+      <div class="refs-cite">Art. 6</div>
+      <div class="refs-gloss">Regula el buzón electrónico y los plazos para su consulta y para la apertura de documentos digitales.</div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 6</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 6.-</strong> Quienes realicen Actividades Vulnerables al momento de firmar el trámite de alta y registro con su Firma Electrónica Avanzada, aceptarán expresamente que la UIF o el SAT, lleven a cabo las notificaciones que correspondan a través de los medios electrónicos señalados en el artículo 5 de estas reglas.</p>
+        <p>[...] Quienes realicen Actividades Vulnerables contarán con tres días hábiles para abrir los documentos digitales pendientes de notificar [...]. La notificación electrónica se tendrá por realizada al cuarto día hábil [...]. Quienes realicen Actividades Vulnerables deberán consultar los medios electrónicos [...] al menos una vez cada día hábil o bien, el día hábil siguiente si alguno de éstos fuere inhábil.</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del Acuerdo 115/2026 en el DOF.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver Acuerdo 115/2026 en el DOF ↗</a>
+    </div>
+
+    <div class="refs-entry" id="ref-rcg-art34ter">
+      <div class="refs-cite">Art. 34 Ter</div>
+      <div class="refs-gloss">El artículo nuevo que extiende de forma expresa a los fedatarios y servidores públicos del art. 17, fracc. XII los capítulos de riesgo, Manual, capacitación, mecanismos automatizados y auditoría.</div>
+      <div class="refs-quote-label">Texto literal — RCG, art. 34 Ter</div>
+      <div class="refs-quote">
+        <p><strong>Artículo 34 Ter.-</strong> Quienes realicen Actividades Vulnerables en términos del artículo 17, fracción XII, Apartados C y D de la Ley, observarán, en lo conducente, lo previsto en los Capítulos II Quáter, III Bis, III Ter, X, XII, XIII y XIV de estas reglas, de conformidad con las facultades que al efecto establezcan las leyes y disposiciones normativas aplicables al ejercicio de sus funciones.</p>
+      </div>
+      <div class="refs-quote-note">Extraído directamente del Acuerdo 115/2026 en el DOF. Nota: el texto remite a los Apartados C y D del art. 17, fracc. XII (servidores públicos con fe pública y personas facilitadoras) — los notarios y corredores de los Apartados A y B ya están sujetos a estos capítulos por vía del régimen general.</div>
+      <a class="refs-link" href="https://www.dof.gob.mx/nota_detalle.php?codigo=5795797&fecha=07/08/2026" target="_blank" rel="noopener noreferrer">Ver Acuerdo 115/2026 en el DOF ↗</a>
+    </div>
+
+    <div class="refs-group-label">Otras normas mencionadas</div>
+
+    <div class="refs-entry" id="ref-cff-32bter">
+      <div class="refs-cite">Código Fiscal de la Federación, art. 32-B Ter</div>
+      <div class="refs-gloss">Establece la obligación fiscal de identificar al Beneficiario Controlador con el mismo umbral de 25%. Es una ley distinta a la LFPIORPI; no forma parte de las fuentes primarias de este boletín, por lo que no incluimos aquí un enlace verificado.</div>
+    </div>
+
+  </div>
+</aside>
+
+<script>
+(function() {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('section.slide'));
+  var dotsNav = document.getElementById('dots');
+  var deck = document.getElementById('deck');
+
+  slides.forEach(function(sl, i) {
+    var btn = document.createElement('button');
+    btn.setAttribute('aria-label', 'Ir a sección ' + (i + 1));
+    btn.dataset.target = sl.id;
+    btn.addEventListener('click', function() {
+      document.getElementById(sl.id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    dotsNav.appendChild(btn);
+  });
+
+  var dotButtons = Array.prototype.slice.call(dotsNav.querySelectorAll('button'));
+
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        var idx = slides.indexOf(entry.target);
+        dotButtons.forEach(function(b, i) { b.classList.toggle('active', i === idx); });
+      }
+    });
+  }, { root: deck, threshold: 0.5 });
+
+  slides.forEach(function(sl) { observer.observe(sl); });
+})();
+
+(function() {
+  var panel = document.getElementById('refsPanel');
+  var backdrop = document.getElementById('refsBackdrop');
+  var toggleBtn = document.getElementById('refsToggle');
+  var closeBtn = document.getElementById('refsClose');
+
+  function openPanel(targetId) {
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+    panel.setAttribute('aria-hidden', 'false');
+    toggleBtn.setAttribute('aria-expanded', 'true');
+    if (targetId) {
+      var entry = document.getElementById(targetId);
+      if (entry) {
+        Array.prototype.forEach.call(document.querySelectorAll('.refs-entry.highlight'), function(e) {
+          e.classList.remove('highlight');
+        });
+        entry.classList.add('highlight');
+        setTimeout(function() {
+          entry.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }, 100);
+      }
+    }
+  }
+
+  function closePanel() {
+    panel.classList.remove('open');
+    backdrop.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+    toggleBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  toggleBtn.addEventListener('click', function() { openPanel(); });
+  closeBtn.addEventListener('click', closePanel);
+  backdrop.addEventListener('click', closePanel);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closePanel();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.ref-link[data-ref]'), function(btn) {
+    btn.addEventListener('click', function() {
+      openPanel('ref-' + btn.dataset.ref);
+    });
+  });
+})();
+</script>

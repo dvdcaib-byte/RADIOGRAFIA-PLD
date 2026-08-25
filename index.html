@@ -1,0 +1,192 @@
+<title>Radiografía PLD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #EEF1EE;
+    --paper-raised: #F8F8F3;
+    --ink: #16202B;
+    --ink-soft: #3C4750;
+    --line: #D6DBD4;
+    --gold: #93641F;
+    --gold-soft: #E4D6BC;
+    --teal: #2F5D57;
+    --teal-soft: #D6E3E0;
+    --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 8px 24px rgba(22,32,43,0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12181F;
+      --paper-raised: #1B232C;
+      --ink: #EAE7DE;
+      --ink-soft: #B7BDB6;
+      --line: #303A39;
+      --gold: #D3A55C;
+      --gold-soft: #3A2F1C;
+      --teal: #7FAFA6;
+      --teal-soft: #1E2E2C;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12181F;
+    --paper-raised: #1B232C;
+    --ink: #EAE7DE;
+    --ink-soft: #B7BDB6;
+    --line: #303A39;
+    --gold: #D3A55C;
+    --gold-soft: #3A2F1C;
+    --teal: #7FAFA6;
+    --teal-soft: #1E2E2C;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: clamp(56px, 10vh, 120px) clamp(20px, 6vw, 60px) 100px;
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 18px;
+    font-weight: 500;
+  }
+
+  .mark {
+    width: 46px;
+    height: 46px;
+    margin-bottom: 28px;
+    color: var(--gold);
+  }
+
+  h1 {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 0;
+    line-height: 1.08;
+  }
+
+  .title-rule {
+    width: 64px;
+    height: 3px;
+    background: var(--gold);
+    border-radius: 2px;
+    margin-top: 28px;
+  }
+
+  .lede {
+    font-size: clamp(1.1rem, 1.5vw, 1.3rem);
+    color: var(--ink-soft);
+    max-width: 640px;
+    line-height: 1.6;
+    text-align: justify;
+    margin-top: 20px;
+  }
+
+  .cards {
+    margin-top: 56px;
+    display: grid;
+    gap: 18px;
+  }
+
+  a.card {
+    display: block;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 28px 28px;
+    box-shadow: var(--shadow);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s;
+  }
+  a.card:hover { border-color: var(--gold); }
+
+  .card-kicker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--teal);
+  }
+  .card-title {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 10px 0 8px;
+    color: var(--ink);
+  }
+  .card-desc {
+    font-size: 0.98rem;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    max-width: 60ch;
+  }
+  .card-arrow {
+    display: inline-block;
+    margin-top: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--gold);
+  }
+
+  .footer-note {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    max-width: 640px;
+  }
+</style>
+
+<div class="page">
+  <svg class="mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="1.4"/>
+    <path d="M24 12v24M14 18l10-6 10 6M14 30l10 6 10-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <p class="eyebrow">Prevención de Lavado de Dinero</p>
+  <h1>Radiografía PLD</h1>
+  <div class="title-rule"></div>
+  <p class="lede">Boletines y herramientas de referencia sobre cumplimiento en materia de prevención de lavado de dinero, pensados para leerse rápido y consultarse cuando hace falta — sin perder precisión legal.</p>
+
+  <div class="cards">
+    <a class="card" href="reforma-pld-agosto-2026-nutshell.html">
+      <div class="card-kicker">Boletín ejecutivo</div>
+      <div class="card-title">Radiografía de las modificaciones a las Reglas de Carácter General</div>
+      <div class="card-desc">Qué cambió con el Acuerdo 115/2026 (DOF 7 de agosto de 2026), desde cuándo es exigible cada obligación, y qué significa para quien realiza una Actividad Vulnerable. Con panel de fuentes y texto literal de cada artículo citado.</div>
+      <span class="card-arrow">Leer el boletín →</span>
+    </a>
+
+    <a class="card" href="matriz-actividades-vulnerables.html">
+      <div class="card-kicker">Herramienta de referencia</div>
+      <div class="card-title">Matriz de Actividades Vulnerables y Restricciones de Efectivo</div>
+      <div class="card-desc">Las 16 fracciones del artículo 17 de la LFPIORPI —qué se considera Actividad Vulnerable y cuándo genera Aviso— más las operaciones con pago prohibido en efectivo del artículo 32. Todo en veces UMA, verificado contra el texto vigente de la Ley.</div>
+      <span class="card-arrow">Consultar la matriz →</span>
+    </a>
+  </div>
+
+  <div class="footer-note">
+    Contenido de orientación general; no constituye asesoría jurídica sobre casos concretos. Verifica siempre el texto vigente publicado en el Diario Oficial de la Federación.
+  </div>
+</div>
