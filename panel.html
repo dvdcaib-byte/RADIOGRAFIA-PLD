@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal de Miniapps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<style>
+  :root {
+    --paper: #EEF1EE;
+    --paper-raised: #F8F8F3;
+    --ink: #16202B;
+    --ink-soft: #3C4750;
+    --line: #D6DBD4;
+    --gold: #93641F;
+    --gold-soft: #E4D6BC;
+    --brick: #9B3226;
+    --brick-soft: #EFD7D2;
+    --teal: #2F5D57;
+    --teal-soft: #D6E3E0;
+    --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 8px 24px rgba(22,32,43,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+      --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+      --teal: #7FAFA6; --teal-soft: #1E2E2C;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+    --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+    --teal: #7FAFA6; --teal-soft: #1E2E2C;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  h1, h2 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; margin: 0; }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--gold); margin: 0 0 10px;
+  }
+  .page { max-width: 860px; margin: 0 auto; padding: 56px 24px 80px; }
+
+  /* --- Login --- */
+  #loginView { display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 24px; }
+  .login-card {
+    width: 100%; max-width: 380px; background: var(--paper-raised); border: 1px solid var(--line);
+    border-radius: 6px; padding: 36px 32px; box-shadow: var(--shadow);
+  }
+  .login-card h1 { font-size: 1.5rem; margin-bottom: 6px; }
+  .login-card p.sub { font-size: 0.9rem; color: var(--ink-soft); margin: 0 0 24px; }
+  label { display: block; font-size: 0.82rem; color: var(--ink-soft); margin: 16px 0 6px; }
+  input[type="email"], input[type="password"] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px;
+    background: var(--paper); color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; font-size: 0.95rem;
+  }
+  .btn {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; letter-spacing: 0.03em;
+    padding: 11px 22px; border-radius: 4px; border: 1px solid var(--gold); background: var(--gold);
+    color: var(--paper); cursor: pointer; margin-top: 22px; width: 100%;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn:not(:disabled):hover { opacity: 0.88; }
+  .login-error {
+    margin-top: 14px; font-size: 0.85rem; color: var(--brick); background: var(--brick-soft);
+    border-radius: 4px; padding: 10px 12px; display: none;
+  }
+  .login-error.show { display: block; }
+
+  /* --- Dashboard --- */
+  #dashboardView { display: none; }
+  .dash-header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .dash-header h1 { font-size: 2rem; }
+  .logout-link {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--ink-soft);
+    text-decoration: none; border: 1px solid var(--line); border-radius: 4px; padding: 7px 14px; cursor: pointer; background: none;
+  }
+  .logout-link:hover { border-color: var(--brick); color: var(--brick); }
+  .lede { font-size: 1rem; color: var(--ink-soft); max-width: 640px; margin: 0 0 40px; }
+
+  .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .tool-card {
+    display: block; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px;
+    padding: 22px; box-shadow: var(--shadow); text-decoration: none; color: var(--ink);
+  }
+  .tool-card:hover { border-color: var(--gold); }
+  .tool-card .badge-libre {
+    display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.04em;
+    color: var(--teal); background: var(--teal-soft); border-radius: 3px; padding: 2px 8px; margin-bottom: 10px;
+  }
+  .tool-card h2 { font-size: 1.15rem; }
+  .empty-state { color: var(--ink-soft); font-size: 0.92rem; padding: 24px 0; }
+</style>
+</head>
+<body>
+
+<div id="loginView">
+  <div class="login-card">
+    <p class="eyebrow">Portal de miniapps</p>
+    <h1>Iniciar sesión</h1>
+    <p class="sub">Entra con tu cuenta para ver las herramientas disponibles.</p>
+    <form id="loginForm">
+      <label for="email">Correo</label>
+      <input type="email" id="email" required autocomplete="username">
+      <label for="password">Contraseña</label>
+      <input type="password" id="password" required autocomplete="current-password">
+      <button type="submit" class="btn" id="btnLogin">Entrar</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+  </div>
+</div>
+
+<div id="dashboardView">
+  <div class="page">
+    <div class="dash-header">
+      <div>
+        <p class="eyebrow">Portal de miniapps</p>
+        <h1>Tus herramientas</h1>
+      </div>
+      <button class="logout-link" id="btnLogout">Cerrar sesión</button>
+    </div>
+    <p class="lede">Aquí solo aparecen las miniapps disponibles para tu cuenta.</p>
+    <div class="tool-grid" id="toolGrid"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SUPABASE_URL = 'https://cnlmwlbdlmkifaqwpbak.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_6QLQ5KQo1RZf44DpnH3oyg_iaWEIg5W';
+  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function qs(name) {
+    return new URLSearchParams(window.location.search).get(name);
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function showDashboard() {
+    document.getElementById('loginView').style.display = 'none';
+    document.getElementById('dashboardView').style.display = 'block';
+    loadTools();
+  }
+
+  function showLogin() {
+    document.getElementById('dashboardView').style.display = 'none';
+    document.getElementById('loginView').style.display = 'flex';
+  }
+
+  async function loadTools() {
+    var grid = document.getElementById('toolGrid');
+    grid.innerHTML = '<div class="empty-state">Cargando…</div>';
+
+    var sessionRes = await client.auth.getSession();
+    var session = sessionRes.data && sessionRes.data.session;
+    if (!session) { showLogin(); return; }
+
+    var toolsRes = await client.from('miniapps').select('id, slug, nombre, es_libre').order('nombre');
+    if (toolsRes.error || !toolsRes.data) {
+      grid.innerHTML = '<div class="empty-state">No se pudo cargar el catálogo de herramientas.</div>';
+      return;
+    }
+    var tools = toolsRes.data;
+
+    var accessRes = await client.from('miniapp_acceso').select('miniapp_id').eq('usuario_id', session.user.id);
+    var accessSet = new Set((accessRes.data || []).map(function (r) { return r.miniapp_id; }));
+
+    var visible = tools.filter(function (t) { return t.es_libre || accessSet.has(t.id); });
+
+    if (visible.length === 0) {
+      grid.innerHTML = '<div class="empty-state">Tu cuenta todavía no tiene herramientas asignadas. Contacta a quien administra tu cuenta.</div>';
+      return;
+    }
+
+    grid.innerHTML = visible.map(function (t) {
+      return '<a class="tool-card" href="' + escapeHtml(t.slug) + '.html">' +
+        (t.es_libre ? '<span class="badge-libre">Libre</span><br>' : '') +
+        '<h2>' + escapeHtml(t.nombre) + '</h2></a>';
+    }).join('');
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var errorBox = document.getElementById('loginError');
+    var btn = document.getElementById('btnLogin');
+    errorBox.classList.remove('show');
+    btn.disabled = true;
+    btn.textContent = 'Entrando…';
+
+    var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    var res = await client.auth.signInWithPassword({ email: email, password: password });
+
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+
+    if (res.error) {
+      errorBox.textContent = 'Correo o contraseña incorrectos.';
+      errorBox.classList.add('show');
+      return;
+    }
+
+    var next = qs('next');
+    if (next) { window.location.href = next; return; }
+    showDashboard();
+  });
+
+  document.getElementById('btnLogout').addEventListener('click', async function () {
+    await client.auth.signOut();
+    showLogin();
+  });
+
+  (async function init() {
+    var sessionRes = await client.auth.getSession();
+    var session = sessionRes.data && sessionRes.data.session;
+    if (session) {
+      var next = qs('next');
+      if (next) { window.location.href = next; return; }
+      showDashboard();
+    } else {
+      showLogin();
+    }
+  })();
+})();
+</script>
+</body>
+</html>

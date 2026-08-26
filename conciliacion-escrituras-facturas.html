@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conciliación de Escrituras y Facturas</title>
+<style>html.access-gate-hidden body { display: none; }</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="access-gate.js" data-tool-slug="conciliacion-escrituras-facturas"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #EEF1EE;
+    --paper-raised: #F8F8F3;
+    --ink: #16202B;
+    --ink-soft: #3C4750;
+    --line: #D6DBD4;
+    --gold: #93641F;
+    --gold-soft: #E4D6BC;
+    --brick: #9B3226;
+    --brick-soft: #EFD7D2;
+    --teal: #2F5D57;
+    --teal-soft: #D6E3E0;
+    --green: #2F6B3A;
+    --green-soft: #D9E8DA;
+    --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 8px 24px rgba(22,32,43,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+      --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+      --teal: #7FAFA6; --teal-soft: #1E2E2C; --green: #7FBF8A; --green-soft: #1E2E20;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+    --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+    --teal: #7FAFA6; --teal-soft: #1E2E2C; --green: #7FBF8A; --green-soft: #1E2E20;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1100px; margin: 0 auto; padding: clamp(28px, 5vw, 56px) clamp(16px, 5vw, 40px) 80px; }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.76rem; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--gold); margin: 0 0 12px; font-weight: 500;
+  }
+  h1 {
+    font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: clamp(1.7rem, 3.6vw, 2.5rem);
+    margin: 0; line-height: 1.12; text-wrap: balance;
+  }
+  .title-rule { width: 56px; height: 3px; background: var(--gold); border-radius: 2px; margin: 20px 0; }
+  .lede {
+    font-size: 1.02rem; color: var(--ink-soft); max-width: 720px; line-height: 1.6; text-align: justify; margin: 0 0 8px;
+  }
+  h2 {
+    font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 1.3rem; margin: 0 0 4px;
+  }
+  .section { margin-top: 44px; }
+  .section-note { font-size: 0.88rem; color: var(--ink-soft); margin: 4px 0 16px; max-width: 720px; }
+
+  .privacy-note {
+    margin-top: 24px; padding: 14px 18px; border-left: 3px solid var(--teal); background: var(--teal-soft);
+    border-radius: 0 4px 4px 0; font-size: 0.88rem; color: var(--ink-soft); max-width: 720px;
+  }
+  .privacy-note strong { color: var(--ink); }
+
+  /* --- Upload zones --- */
+  .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+  @media (max-width: 700px) { .upload-grid { grid-template-columns: 1fr; } }
+
+  .dropzone {
+    background: var(--paper-raised); border: 2px dashed var(--line); border-radius: 6px;
+    padding: 24px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    box-shadow: var(--shadow);
+  }
+  .dropzone.drag { border-color: var(--gold); background: var(--gold-soft); }
+  .dropzone.loaded { border-style: solid; border-color: var(--green); }
+  .dropzone input { display: none; }
+  .dz-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); }
+  .dz-title { font-family: 'Newsreader', Georgia, serif; font-size: 1.15rem; font-weight: 600; margin: 8px 0 4px; }
+  .dz-hint { font-size: 0.85rem; color: var(--ink-soft); }
+  .dz-file { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: var(--green); margin-top: 10px; word-break: break-all; }
+  .dz-error { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: var(--brick); margin-top: 10px; }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; letter-spacing: 0.03em;
+    padding: 11px 22px; border-radius: 4px; border: 1px solid var(--gold); background: var(--gold);
+    color: var(--paper); cursor: pointer; margin-top: 24px;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:not(:disabled):hover { opacity: 0.88; }
+  .btn-ghost {
+    background: none; color: var(--ink-soft); border: 1px solid var(--line);
+  }
+  .btn-small {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; letter-spacing: 0.03em;
+    padding: 7px 14px; border-radius: 4px; border: 1px solid var(--line); background: none;
+    color: var(--ink-soft); cursor: pointer; white-space: nowrap;
+  }
+  .btn-small:hover { border-color: var(--gold); color: var(--gold); }
+  .section-header-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .report-actions { display: flex; justify-content: flex-end; margin-top: 24px; }
+  .print-only { display: none; }
+
+  /* --- KPIs --- */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-top: 24px; }
+  .kpi {
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: 4px; padding: 16px 18px; box-shadow: var(--shadow);
+  }
+  .kpi-value {
+    font-family: 'Newsreader', Georgia, serif; font-size: 1.9rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .kpi-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin-top: 8px; }
+  .kpi.flag-red .kpi-value { color: var(--brick); }
+  .kpi.flag-amber .kpi-value { color: var(--gold); }
+  .kpi.flag-green .kpi-value { color: var(--green); }
+
+  /* --- Filters --- */
+  .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; align-items: center; }
+  .filters select {
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 0.85rem; padding: 7px 10px; border-radius: 4px;
+    border: 1px solid var(--line); background: var(--paper-raised); color: var(--ink);
+  }
+  .filters label { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); }
+
+  /* --- Tables --- */
+  .table-wrap { margin-top: 16px; overflow-x: auto; }
+  table.data-table {
+    width: 100%; border-collapse: collapse; background: var(--paper-raised); border: 1px solid var(--line);
+    border-radius: 4px; overflow: hidden; box-shadow: var(--shadow); min-width: 560px;
+  }
+  table.data-table th {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-soft); text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--paper);
+    position: sticky; top: 0;
+  }
+  table.data-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 0.9rem; vertical-align: top; color: var(--ink); }
+  table.data-table tbody tr:last-child td { border-bottom: none; }
+  table.data-table td.mono, table.data-table th.mono { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .empty-state { padding: 28px; text-align: center; color: var(--ink-soft); font-size: 0.9rem; }
+
+  .badge { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 9px; border-radius: 4px; white-space: nowrap; }
+  .badge.red { background: var(--brick-soft); color: var(--brick); }
+  .badge.amber { background: var(--gold-soft); color: var(--gold); }
+  .badge.green { background: var(--green-soft); color: var(--green); }
+  .badge.gray { background: var(--line); color: var(--ink-soft); }
+
+  details.full-table summary { cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--teal); margin-top: 8px; }
+
+  #resultsArea { display: none; }
+  #resultsArea.show { display: block; }
+
+  @media print {
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
+    body { background: #fff; }
+    .page { max-width: 100%; padding: 0 8px; }
+    .kpi, .data-table { box-shadow: none; }
+    details.full-table .table-wrap { display: block !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <p class="eyebrow">Herramienta operativa — Vega Ibarra</p>
+  <h1>Conciliación: Escrituras Firmadas vs. Facturas Emitidas</h1>
+  <div class="title-rule"></div>
+  <p class="lede">Sube el reporte de escrituras firmadas del mes y el de facturas emitidas — la herramienta cruza ambos por expediente y te dice qué se firmó pero nunca se facturó, qué está pendiente de cobro, y qué facturas no corresponden a ninguna escritura del panel.</p>
+
+  <div class="privacy-note">
+    <strong>Tus datos no salen de tu computadora.</strong> Todo el procesamiento ocurre en tu propio navegador — nada se sube a ningún servidor.
+  </div>
+
+  <div class="upload-grid">
+    <div class="dropzone" id="dz-escrituras" tabindex="0" role="button" aria-label="Subir reporte de escrituras firmadas o facturas emitidas">
+      <div class="dz-label">Casilla 1</div>
+      <div class="dz-title">Escrituras Firmadas</div>
+      <div class="dz-hint">Arrastra aquí cualquiera de los dos reportes — no importa el orden, la herramienta lo identifica sola.</div>
+      <div class="dz-file" id="dz-escrituras-file"></div>
+      <div class="dz-error" id="dz-escrituras-error"></div>
+      <input type="file" id="input-escrituras" accept=".xlsx,.csv">
+    </div>
+    <div class="dropzone" id="dz-facturas" tabindex="0" role="button" aria-label="Subir reporte de escrituras firmadas o facturas emitidas">
+      <div class="dz-label">Casilla 2</div>
+      <div class="dz-title">Facturas Emitidas</div>
+      <div class="dz-hint">Arrastra aquí cualquiera de los dos reportes — no importa el orden, la herramienta lo identifica sola.</div>
+      <div class="dz-file" id="dz-facturas-file"></div>
+      <div class="dz-error" id="dz-facturas-error"></div>
+      <input type="file" id="input-facturas" accept=".xlsx,.csv">
+    </div>
+  </div>
+
+  <p class="section-note">Esta herramienta lee archivos <code>.xlsx</code> y <code>.csv</code>. Si tu sistema exporta en otro formato, usa <em>Archivo → Guardar como</em> dentro de Excel antes de subirlo aquí.</p>
+
+  <button class="btn" id="btnConciliar" disabled>Conciliar</button>
+
+  <p class="section-note print-only" id="printMeta"></p>
+
+  <div id="resultsArea">
+
+    <div class="section">
+      <div class="section-header-row">
+        <h2>Resumen</h2>
+        <button class="btn-small no-print" id="btnDescargarPDF">Descargar reporte (PDF)</button>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+    </div>
+
+    <div class="section no-print">
+      <div class="filters">
+        <label for="filterAbogado">Abogado</label>
+        <select id="filterAbogado"><option value="">Todos</option></select>
+        <label for="filterEmpresa">Notaría</label>
+        <select id="filterEmpresa"><option value="">Todas</option></select>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header-row">
+        <h2>🔴 Firmadas, sin facturar</h2>
+        <button class="btn-small no-print" id="btnDescargarSinFacturar">Descargar CSV</button>
+      </div>
+      <p class="section-note">Escrituras que no tienen ningún recibo asociado en Facturas Emitidas — la prioridad operativa.</p>
+      <div class="table-wrap" id="tblSinFacturar"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header-row">
+        <h2>🟡 Facturadas, pendientes de cobro</h2>
+        <button class="btn-small no-print" id="btnDescargarPendientes">Descargar CSV</button>
+      </div>
+      <p class="section-note">Tienen al menos un recibo con saldo pendiente.</p>
+      <div class="table-wrap" id="tblPendientes"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header-row">
+        <h2>⚪ Facturas sin escritura correspondiente</h2>
+        <button class="btn-small no-print" id="btnDescargarSinEscritura">Descargar CSV</button>
+      </div>
+      <p class="section-note">Expedientes facturados que no aparecen en el panel de escrituras firmadas de este mes — revisar caso por caso (pueden ser servicios sin escritura, como copias o gestorías, o una discrepancia de datos).</p>
+      <div class="table-wrap" id="tblSinEscritura"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header-row">
+        <h2>Conciliación completa</h2>
+        <button class="btn-small no-print" id="btnDescargarCompleta">Descargar CSV</button>
+      </div>
+      <p class="section-note">Todas las escrituras firmadas del mes con su estatus de facturación, para auditoría.</p>
+      <details class="full-table">
+        <summary class="no-print">Mostrar/ocultar tabla completa (<span id="fullCount">0</span> filas)</summary>
+        <div class="table-wrap" id="tblCompleta"></div>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ============================================================
+  // CAPA 1 — PARSEO (formato-agnóstico: .xlsx y .csv -> filas)
+  // ============================================================
+
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], field = '', inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else { inQuotes = false; }
+        } else { field += c; }
+      } else {
+        if (c === '"') { inQuotes = true; }
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\r') { /* skip */ }
+        else if (c === '\n') { row.push(field); field = ''; rows.push(row); row = []; }
+        else { field += c; }
+      }
+    }
+    if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+    return rows.filter(function (r) { return r.some(function (c) { return c !== ''; }); });
+  }
+
+  function colLetterToIndex(ref) {
+    const m = /^([A-Z]+)/.exec(ref);
+    if (!m) return 0;
+    const letters = m[1];
+    let idx = 0;
+    for (let i = 0; i < letters.length; i++) {
+      idx = idx * 26 + (letters.charCodeAt(i) - 64);
+    }
+    return idx - 1;
+  }
+
+  async function readZipEntries(buf, wantedNames) {
+    const view = new DataView(buf);
+    const bytes = new Uint8Array(buf);
+    const maxCommentLen = 65535;
+    const searchStart = Math.max(0, buf.byteLength - (22 + maxCommentLen));
+    let eocdOffset = -1;
+    for (let i = buf.byteLength - 22; i >= searchStart; i--) {
+      if (view.getUint32(i, true) === 0x06054b50) { eocdOffset = i; break; }
+    }
+    if (eocdOffset < 0) throw new Error('Archivo .xlsx inválido: no se encontró el índice ZIP.');
+    const cdEntries = view.getUint16(eocdOffset + 10, true);
+    const cdOffset = view.getUint32(eocdOffset + 16, true);
+
+    const dir = new Map();
+    let offset = cdOffset;
+    for (let i = 0; i < cdEntries; i++) {
+      const sig = view.getUint32(offset, true);
+      if (sig !== 0x02014b50) throw new Error('Índice ZIP corrupto.');
+      const compMethod = view.getUint16(offset + 10, true);
+      const compSize = view.getUint32(offset + 20, true);
+      const nameLen = view.getUint16(offset + 28, true);
+      const extraLen = view.getUint16(offset + 30, true);
+      const commentLen = view.getUint16(offset + 32, true);
+      const localHeaderOffset = view.getUint32(offset + 42, true);
+      const nameBytes = bytes.subarray(offset + 46, offset + 46 + nameLen);
+      const name = new TextDecoder('utf-8').decode(nameBytes);
+      dir.set(name, { compMethod: compMethod, compSize: compSize, localHeaderOffset: localHeaderOffset });
+      offset += 46 + nameLen + extraLen + commentLen;
+    }
+
+    const result = new Map();
+    for (const name of dir.keys()) {
+      if (wantedNames && !wantedNames(name)) continue;
+      const info = dir.get(name);
+      const lh = info.localHeaderOffset;
+      const lhNameLen = view.getUint16(lh + 26, true);
+      const lhExtraLen = view.getUint16(lh + 28, true);
+      const dataStart = lh + 30 + lhNameLen + lhExtraLen;
+      const compData = bytes.subarray(dataStart, dataStart + info.compSize);
+      let outBytes;
+      if (info.compMethod === 0) {
+        outBytes = compData;
+      } else if (info.compMethod === 8) {
+        const ds = new DecompressionStream('deflate-raw');
+        const stream = new Blob([compData]).stream().pipeThrough(ds);
+        outBytes = new Uint8Array(await new Response(stream).arrayBuffer());
+      } else {
+        throw new Error('Método de compresión ZIP no soportado (' + info.compMethod + ').');
+      }
+      result.set(name, outBytes);
+    }
+    return result;
+  }
+
+  function bytesToXmlDoc(bytes) {
+    const xml = new TextDecoder('utf-8').decode(bytes);
+    return new DOMParser().parseFromString(xml, 'application/xml');
+  }
+
+  function parseSharedStrings(bytes) {
+    if (!bytes) return [];
+    const doc = bytesToXmlDoc(bytes);
+    const siEls = doc.getElementsByTagName('si');
+    const arr = [];
+    for (let i = 0; i < siEls.length; i++) {
+      const tEls = siEls[i].getElementsByTagName('t');
+      let text = '';
+      for (let j = 0; j < tEls.length; j++) text += tEls[j].textContent;
+      arr.push(text);
+    }
+    return arr;
+  }
+
+  function resolveFirstSheetName(zipMap) {
+    try {
+      const wbBytes = zipMap.get('xl/workbook.xml');
+      const relsBytes = zipMap.get('xl/_rels/workbook.xml.rels');
+      if (!wbBytes || !relsBytes) return null;
+      const wbDoc = bytesToXmlDoc(wbBytes);
+      const sheetEl = wbDoc.getElementsByTagName('sheet')[0];
+      if (!sheetEl) return null;
+      const rId = sheetEl.getAttribute('r:id') || sheetEl.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+      const relsDoc = bytesToXmlDoc(relsBytes);
+      const relEls = relsDoc.getElementsByTagName('Relationship');
+      for (let i = 0; i < relEls.length; i++) {
+        if (relEls[i].getAttribute('Id') === rId) {
+          let target = relEls[i].getAttribute('Target');
+          if (target.startsWith('/')) return target.slice(1);
+          return 'xl/' + target.replace(/^\.?\//, '');
+        }
+      }
+    } catch (e) { /* fall through to default */ }
+    return null;
+  }
+
+  function parseSheetXML(bytes, sharedStrings) {
+    const doc = bytesToXmlDoc(bytes);
+    const rowEls = doc.getElementsByTagName('row');
+    const rows = [];
+    for (let ri = 0; ri < rowEls.length; ri++) {
+      const rowEl = rowEls[ri];
+      const rAttr = rowEl.getAttribute('r');
+      const rIndex = rAttr ? (parseInt(rAttr, 10) - 1) : ri;
+      const cellEls = rowEl.getElementsByTagName('c');
+      const rowArr = [];
+      for (let ci = 0; ci < cellEls.length; ci++) {
+        const c = cellEls[ci];
+        const ref = c.getAttribute('r');
+        const colIdx = ref ? colLetterToIndex(ref) : ci;
+        const type = c.getAttribute('t');
+        let value = '';
+        if (type === 'inlineStr') {
+          const isEl = c.getElementsByTagName('is')[0];
+          value = isEl ? isEl.textContent : '';
+        } else {
+          const vEl = c.getElementsByTagName('v')[0];
+          const raw = vEl ? vEl.textContent : '';
+          if (type === 's') value = sharedStrings[parseInt(raw, 10)] || '';
+          else value = raw;
+        }
+        rowArr[colIdx] = value;
+      }
+      rows[rIndex] = rowArr;
+    }
+    const cleaned = [];
+    for (let i = 0; i < rows.length; i++) {
+      cleaned.push(rows[i] || []);
+    }
+    return cleaned.filter(function (r) { return r.some(function (v) { return v !== undefined && v !== ''; }); });
+  }
+
+  async function parseXLSX(buf) {
+    const zipMap = await readZipEntries(buf, function (name) {
+      return name === 'xl/sharedStrings.xml' || name === 'xl/workbook.xml' ||
+        name === 'xl/_rels/workbook.xml.rels' || name.indexOf('xl/worksheets/') === 0;
+    });
+    const sharedStrings = parseSharedStrings(zipMap.get('xl/sharedStrings.xml'));
+    let sheetPath = resolveFirstSheetName(zipMap);
+    if (!sheetPath || !zipMap.has(sheetPath)) sheetPath = 'xl/worksheets/sheet1.xml';
+    if (!zipMap.has(sheetPath)) {
+      for (const name of zipMap.keys()) {
+        if (name.indexOf('xl/worksheets/sheet') === 0) { sheetPath = name; break; }
+      }
+    }
+    const sheetBytes = zipMap.get(sheetPath);
+    if (!sheetBytes) throw new Error('No se encontró ninguna hoja dentro del archivo .xlsx.');
+    return parseSheetXML(sheetBytes, sharedStrings);
+  }
+
+  async function parseFile(file) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.csv')) {
+      const text = await file.text();
+      return parseCSV(text);
+    } else if (name.endsWith('.xlsx')) {
+      const buf = await file.arrayBuffer();
+      return await parseXLSX(buf);
+    } else {
+      throw new Error('Formato no soportado. Usa .xlsx o .csv.');
+    }
+  }
+
+  // ============================================================
+  // CAPA 2 — PERFIL DEL REPORTE (lo único específico de este par)
+  // ============================================================
+
+  const PROFILE_ESCRITURAS = {
+    expediente: ['Expediente', 'EXPEDIENTE'],
+    escritura: ['Instrumento', 'ESCRITURA', 'Esc', 'Esc.'],
+    fecha: ['Fecha Firma', 'FECHA FIRMA'],
+    abogado: ['Abogado', 'ABOGADO'],
+    cliente: ['Cliente', 'CLIENTE'],
+    operacion: ['Operación', 'Operacion', 'OPERACIÓN'],
+    valorOperacion: ['Valor Operación', 'Valor Operacion', 'VALOR OPERACIÓN'],
+    empresa: ['idEmpresa', 'Empresa', 'EMPRESA']
+  };
+
+  const PROFILE_FACTURAS = {
+    expediente: ['EXPEDIENTE', 'Expediente', 'EXP', 'EXP.'],
+    escritura: ['ESCRITURA', 'Esc', 'Esc.', 'Instrumento'],
+    cliente: ['CLIENTE', 'Cliente'],
+    abogado: ['ABOGADO', 'Abogado'],
+    recibo: ['RECIBO'],
+    montoRecibo: ['MONTO RECIBO'],
+    saldo: ['SALDO'],
+    estatus: ['ESTATUS'],
+    fecha: ['FECHA EMISIÓN', 'FECHA EMISION']
+  };
+
+  function buildRowObjects(rows, aliasMap) {
+    if (!rows || rows.length === 0) return [];
+    const headers = rows[0].map(function (h) { return String(h == null ? '' : h).trim(); });
+    const colIndex = {};
+    Object.keys(aliasMap).forEach(function (key) {
+      const aliases = aliasMap[key];
+      for (let a = 0; a < aliases.length; a++) {
+        const idx = headers.findIndex(function (h) { return h.toLowerCase() === aliases[a].toLowerCase(); });
+        if (idx >= 0) { colIndex[key] = idx; break; }
+      }
+    });
+    const dataRows = rows.slice(1);
+    return dataRows.map(function (r) {
+      const obj = {};
+      Object.keys(aliasMap).forEach(function (key) {
+        const idx = colIndex[key];
+        obj[key] = idx !== undefined && r[idx] !== undefined ? r[idx] : '';
+      });
+      return obj;
+    });
+  }
+
+  function headerListOf(rows) {
+    return (rows && rows[0] ? rows[0] : []).map(function (h) { return String(h == null ? '' : h).trim().toLowerCase(); });
+  }
+  function hasAnyHeader(headerList, aliases) {
+    return aliases.some(function (a) { return headerList.indexOf(a.toLowerCase()) >= 0; });
+  }
+  function matchesProfileSignature(rows, aliasGroups) {
+    const headerList = headerListOf(rows);
+    return aliasGroups.every(function (aliases) { return hasAnyHeader(headerList, aliases); });
+  }
+  const SIGNATURE_ESCRITURAS = [PROFILE_ESCRITURAS.fecha, PROFILE_ESCRITURAS.valorOperacion];
+  const SIGNATURE_FACTURAS = [PROFILE_FACTURAS.montoRecibo, PROFILE_FACTURAS.estatus];
+
+  function normExpediente(v) { return String(v == null ? '' : v).trim(); }
+  function normEscritura(v) {
+    if (!v) return '';
+    return String(v).replace(/^\s*esc\.?\s*/i, '').trim();
+  }
+  function parseMonto(v) {
+    if (typeof v === 'number') return v;
+    if (v === null || v === undefined || v === '') return 0;
+    const cleaned = String(v).replace(/[^0-9.\-]/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  }
+  function fmtMoney(n) {
+    return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // ============================================================
+  // CAPA 3 — MOTOR DE CONCILIACIÓN (genérico: agrupa, cruza, clasifica)
+  // ============================================================
+
+  function reconcile(escrituraRows, facturaRows) {
+    const facMap = new Map();
+    facturaRows.forEach(function (f) {
+      const exp = normExpediente(f.expediente);
+      if (!exp) return;
+      if (!facMap.has(exp)) {
+        facMap.set(exp, { records: [], totalFacturado: 0, totalSaldo: 0, estatusSet: new Set() });
+      }
+      const agg = facMap.get(exp);
+      agg.records.push(f);
+      const estatus = String(f.estatus || '').trim().toUpperCase();
+      agg.estatusSet.add(estatus);
+      if (estatus !== 'CANCELADO') {
+        agg.totalFacturado += parseMonto(f.montoRecibo);
+        agg.totalSaldo += parseMonto(f.saldo);
+      }
+    });
+
+    const escrituraExpSet = new Set(escrituraRows.map(function (e) { return normExpediente(e.expediente); }));
+
+    const results = escrituraRows.map(function (e) {
+      const exp = normExpediente(e.expediente);
+      const agg = facMap.get(exp);
+      let status;
+      const estatusList = agg ? Array.from(agg.estatusSet) : [];
+      const allCancelled = agg && estatusList.length > 0 && estatusList.every(function (s) { return s === 'CANCELADO'; });
+      if (!agg || agg.records.length === 0 || allCancelled) {
+        status = 'sin_facturar';
+      } else if (agg.totalSaldo > 0.005) {
+        status = 'pendiente_cobro';
+      } else {
+        status = 'facturada_cobrada';
+      }
+      return {
+        expediente: exp,
+        escritura: normEscritura(e.escritura),
+        fecha: e.fecha,
+        abogado: e.abogado,
+        cliente: e.cliente,
+        operacion: e.operacion,
+        empresa: e.empresa,
+        status: status,
+        totalFacturado: agg ? agg.totalFacturado : 0,
+        totalSaldo: agg ? agg.totalSaldo : 0,
+        numRecibos: agg ? agg.records.length : 0
+      };
+    });
+
+    const facturasSinEscritura = [];
+    facMap.forEach(function (agg, exp) {
+      if (!escrituraExpSet.has(exp)) {
+        facturasSinEscritura.push({
+          expediente: exp,
+          cliente: agg.records[0] ? agg.records[0].cliente : '',
+          escritura: normEscritura(agg.records[0] ? agg.records[0].escritura : ''),
+          totalFacturado: agg.totalFacturado,
+          totalSaldo: agg.totalSaldo,
+          numRecibos: agg.records.length
+        });
+      }
+    });
+
+    return { results: results, facturasSinEscritura: facturasSinEscritura };
+  }
+
+  // ============================================================
+  // CAPA 4 — INTERFAZ
+  // ============================================================
+
+  const state = { escrituraRows: null, facturaRows: null, reconciliation: null };
+
+  // Las dos casillas son intercambiables: cualquier archivo soltado en cualquiera
+  // de las dos se identifica por sus columnas y se acomoda en el lugar que le
+  // corresponde, sin importar dónde se soltó.
+  const ZONES = {
+    escrituras: {
+      zone: document.getElementById('dz-escrituras'),
+      input: document.getElementById('input-escrituras'),
+      fileLabel: document.getElementById('dz-escrituras-file'),
+      errorLabel: document.getElementById('dz-escrituras-error'),
+      signature: SIGNATURE_ESCRITURAS,
+      onLoaded: function (rows) { state.escrituraRows = rows; checkReady(); }
+    },
+    facturas: {
+      zone: document.getElementById('dz-facturas'),
+      input: document.getElementById('input-facturas'),
+      fileLabel: document.getElementById('dz-facturas-file'),
+      errorLabel: document.getElementById('dz-facturas-error'),
+      signature: SIGNATURE_FACTURAS,
+      onLoaded: function (rows) { state.facturaRows = rows; checkReady(); }
+    }
+  };
+
+  function detectZoneKey(rows) {
+    if (matchesProfileSignature(rows, ZONES.escrituras.signature)) return 'escrituras';
+    if (matchesProfileSignature(rows, ZONES.facturas.signature)) return 'facturas';
+    return null;
+  }
+
+  function handleIncomingFile(file, originKey) {
+    const origin = ZONES[originKey];
+    ZONES.escrituras.errorLabel.textContent = '';
+    ZONES.facturas.errorLabel.textContent = '';
+    origin.fileLabel.textContent = 'Leyendo ' + file.name + '…';
+    parseFile(file).then(function (rows) {
+      const targetKey = detectZoneKey(rows);
+      if (!targetKey) {
+        origin.fileLabel.textContent = '';
+        origin.errorLabel.textContent = 'No reconozco este archivo como "Escrituras Firmadas" ni como "Facturas Emitidas" — revisa que sea el reporte correcto.';
+        origin.zone.classList.remove('loaded');
+        return;
+      }
+      const target = ZONES[targetKey];
+      if (target !== origin) { origin.fileLabel.textContent = ''; origin.zone.classList.remove('loaded'); }
+      target.fileLabel.textContent = file.name + ' — ' + Math.max(0, rows.length - 1) + ' filas de datos';
+      target.zone.classList.add('loaded');
+      target.onLoaded(rows);
+    }).catch(function (err) {
+      origin.fileLabel.textContent = '';
+      origin.errorLabel.textContent = err.message || String(err);
+      origin.zone.classList.remove('loaded');
+    });
+  }
+
+  function wireZone(key) {
+    const z = ZONES[key];
+    z.zone.addEventListener('click', function () { z.input.click(); });
+    z.zone.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') z.input.click(); });
+    z.input.addEventListener('change', function () { if (z.input.files[0]) handleIncomingFile(z.input.files[0], key); });
+    z.zone.addEventListener('dragover', function (e) { e.preventDefault(); z.zone.classList.add('drag'); });
+    z.zone.addEventListener('dragleave', function () { z.zone.classList.remove('drag'); });
+    z.zone.addEventListener('drop', function (e) {
+      e.preventDefault();
+      z.zone.classList.remove('drag');
+      if (e.dataTransfer.files[0]) handleIncomingFile(e.dataTransfer.files[0], key);
+    });
+  }
+
+  function checkReady() {
+    document.getElementById('btnConciliar').disabled = !(state.escrituraRows && state.facturaRows);
+  }
+
+  wireZone('escrituras');
+  wireZone('facturas');
+
+  document.getElementById('btnConciliar').addEventListener('click', function () {
+    const escrituras = buildRowObjects(state.escrituraRows, PROFILE_ESCRITURAS);
+    const facturas = buildRowObjects(state.facturaRows, PROFILE_FACTURAS);
+    state.reconciliation = reconcile(escrituras, facturas);
+    populateFilters(escrituras);
+    render();
+    document.getElementById('resultsArea').classList.add('show');
+    document.getElementById('resultsArea').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  function populateFilters(escrituras) {
+    const abogados = Array.from(new Set(escrituras.map(function (e) { return e.abogado; }).filter(Boolean))).sort();
+    const empresas = Array.from(new Set(escrituras.map(function (e) { return e.empresa; }).filter(Boolean))).sort();
+    const abSel = document.getElementById('filterAbogado');
+    const emSel = document.getElementById('filterEmpresa');
+    abSel.innerHTML = '<option value="">Todos</option>' + abogados.map(function (a) { return '<option value="' + escapeHtml(a) + '">' + escapeHtml(a) + '</option>'; }).join('');
+    emSel.innerHTML = '<option value="">Todas</option>' + empresas.map(function (e) { return '<option value="' + escapeHtml(e) + '">' + escapeHtml(e) + '</option>'; }).join('');
+    abSel.onchange = render;
+    emSel.onchange = render;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function statusBadge(status) {
+    if (status === 'sin_facturar') return '<span class="badge red">Sin facturar</span>';
+    if (status === 'pendiente_cobro') return '<span class="badge amber">Pendiente de cobro</span>';
+    return '<span class="badge green">Cobrada</span>';
+  }
+  function statusLabel(status) {
+    if (status === 'sin_facturar') return 'Sin facturar';
+    if (status === 'pendiente_cobro') return 'Pendiente de cobro';
+    return 'Cobrada';
+  }
+
+  // ============================================================
+  // EXPORTACIÓN — descarga CSV y reporte imprimible/PDF
+  // ============================================================
+
+  function toCsvValue(v) {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function downloadCSV(filename, headers, rows) {
+    const lines = [headers.map(toCsvValue).join(',')];
+    rows.forEach(function (r) { lines.push(r.map(toCsvValue).join(',')); });
+    const csv = '﻿' + lines.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  function wireDownload(btnId, exportKey, filenamePrefix) {
+    document.getElementById(btnId).addEventListener('click', function () {
+      const data = state.exports && state.exports[exportKey];
+      if (!data || data.rows.length === 0) return;
+      downloadCSV(filenamePrefix + '.csv', data.headers, data.rows);
+    });
+  }
+  wireDownload('btnDescargarSinFacturar', 'sinFacturar', 'escrituras-sin-facturar');
+  wireDownload('btnDescargarPendientes', 'pendientes', 'facturadas-pendientes-de-cobro');
+  wireDownload('btnDescargarSinEscritura', 'sinEscritura', 'facturas-sin-escritura');
+  wireDownload('btnDescargarCompleta', 'completa', 'conciliacion-completa');
+
+  document.getElementById('btnDescargarPDF').addEventListener('click', function () { window.print(); });
+  window.addEventListener('beforeprint', function () {
+    document.querySelector('details.full-table').open = true;
+    const abFilter = document.getElementById('filterAbogado').value;
+    const emFilter = document.getElementById('filterEmpresa').value;
+    const filtros = [];
+    if (abFilter) filtros.push('Abogado: ' + abFilter);
+    if (emFilter) filtros.push('Notaría: ' + emFilter);
+    const fecha = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('printMeta').textContent = 'Reporte generado el ' + fecha + (filtros.length ? ' — ' + filtros.join(' · ') : '');
+  });
+
+  function render() {
+    const abFilter = document.getElementById('filterAbogado').value;
+    const emFilter = document.getElementById('filterEmpresa').value;
+    const all = state.reconciliation.results.filter(function (r) {
+      return (!abFilter || r.abogado === abFilter) && (!emFilter || r.empresa === emFilter);
+    });
+    const sinFacturar = all.filter(function (r) { return r.status === 'sin_facturar'; });
+    const pendientes = all.filter(function (r) { return r.status === 'pendiente_cobro'; });
+    const cobradas = all.filter(function (r) { return r.status === 'facturada_cobrada'; });
+    const sinEscritura = state.reconciliation.facturasSinEscritura;
+
+    const totalFacturado = all.reduce(function (s, r) { return s + r.totalFacturado; }, 0);
+    const totalPendiente = all.reduce(function (s, r) { return s + r.totalSaldo; }, 0);
+
+    document.getElementById('kpiGrid').innerHTML = [
+      kpiCard(all.length, 'Escrituras del mes', ''),
+      kpiCard(sinFacturar.length, 'Sin facturar', sinFacturar.length > 0 ? 'flag-red' : ''),
+      kpiCard(pendientes.length, 'Pendientes de cobro', pendientes.length > 0 ? 'flag-amber' : ''),
+      kpiCard(cobradas.length, 'Facturadas y cobradas', 'flag-green'),
+      kpiCard(sinEscritura.length, 'Facturas sin escritura', sinEscritura.length > 0 ? 'flag-amber' : ''),
+      kpiCard(fmtMoney(totalFacturado), 'Total facturado', ''),
+      kpiCard(fmtMoney(totalPendiente), 'Total pendiente de cobro', totalPendiente > 0 ? 'flag-amber' : '')
+    ].join('');
+
+    renderTable('tblSinFacturar', sinFacturar,
+      ['Expediente', 'Escritura', 'Fecha Firma', 'Cliente', 'Abogado', 'Operación'],
+      function (r) { return [r.expediente, r.escritura, r.fecha, r.cliente, r.abogado, r.operacion]; },
+      'No hay escrituras sin facturar con estos filtros.');
+
+    renderTable('tblPendientes', pendientes,
+      ['Expediente', 'Cliente', 'Recibos', 'Facturado', 'Saldo pendiente'],
+      function (r) { return [r.expediente, r.cliente, r.numRecibos, fmtMoney(r.totalFacturado), fmtMoney(r.totalSaldo)]; },
+      'No hay facturas pendientes de cobro con estos filtros.');
+
+    renderTable('tblSinEscritura', sinEscritura,
+      ['Expediente', 'Cliente', 'Escritura referenciada', 'Recibos', 'Monto facturado'],
+      function (r) { return [r.expediente, r.cliente, r.escritura || '—', r.numRecibos, fmtMoney(r.totalFacturado)]; },
+      'Todas las facturas corresponden a una escritura del panel.');
+
+    document.getElementById('fullCount').textContent = all.length;
+    renderTable('tblCompleta', all,
+      ['Expediente', 'Escritura', 'Fecha Firma', 'Cliente', 'Abogado', 'Estatus', 'Facturado', 'Saldo'],
+      function (r) { return [r.expediente, r.escritura, r.fecha, r.cliente, r.abogado, statusBadge(r.status), fmtMoney(r.totalFacturado), fmtMoney(r.totalSaldo)]; },
+      'Sin resultados.');
+
+    state.exports = {
+      sinFacturar: {
+        headers: ['Expediente', 'Escritura', 'Fecha Firma', 'Cliente', 'Abogado', 'Operación'],
+        rows: sinFacturar.map(function (r) { return [r.expediente, r.escritura, r.fecha, r.cliente, r.abogado, r.operacion]; })
+      },
+      pendientes: {
+        headers: ['Expediente', 'Cliente', 'Recibos', 'Facturado', 'Saldo pendiente'],
+        rows: pendientes.map(function (r) { return [r.expediente, r.cliente, r.numRecibos, fmtMoney(r.totalFacturado), fmtMoney(r.totalSaldo)]; })
+      },
+      sinEscritura: {
+        headers: ['Expediente', 'Cliente', 'Escritura referenciada', 'Recibos', 'Monto facturado'],
+        rows: sinEscritura.map(function (r) { return [r.expediente, r.cliente, r.escritura || '—', r.numRecibos, fmtMoney(r.totalFacturado)]; })
+      },
+      completa: {
+        headers: ['Expediente', 'Escritura', 'Fecha Firma', 'Cliente', 'Abogado', 'Estatus', 'Facturado', 'Saldo'],
+        rows: all.map(function (r) { return [r.expediente, r.escritura, r.fecha, r.cliente, r.abogado, statusLabel(r.status), fmtMoney(r.totalFacturado), fmtMoney(r.totalSaldo)]; })
+      }
+    };
+  }
+
+  function kpiCard(value, label, flagClass) {
+    return '<div class="kpi ' + flagClass + '"><div class="kpi-value">' + value + '</div><div class="kpi-label">' + label + '</div></div>';
+  }
+
+  function renderTable(containerId, rows, headers, rowMapper, emptyMsg) {
+    const container = document.getElementById(containerId);
+    if (!rows || rows.length === 0) {
+      container.innerHTML = '<div class="empty-state">' + emptyMsg + '</div>';
+      return;
+    }
+    let html = '<table class="data-table"><thead><tr>';
+    headers.forEach(function (h) { html += '<th>' + h + '</th>'; });
+    html += '</tr></thead><tbody>';
+    rows.forEach(function (r) {
+      const cells = rowMapper(r);
+      html += '<tr>' + cells.map(function (c) { return '<td>' + (typeof c === 'string' && c.indexOf('<span') === 0 ? c : escapeHtml(c)) + '</td>'; }).join('') + '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+})();
+</script>
+</body>
+</html>
