@@ -218,6 +218,7 @@
         <button class="btn-small no-print" id="btnDescargarPDF">Descargar reporte (PDF)</button>
       </div>
       <div class="kpi-grid" id="kpiGrid"></div>
+      <p class="section-note">"Total facturado (todo julio)" es la facturación completa del mes, incluyendo servicios y expedientes sin escritura en el panel. "Facturado de escrituras de este mes" es un número más específico: solo lo ya cobrado de lo firmado este mes — útil para medir qué tan al día está la facturación del lote actual, no la facturación total.</p>
     </div>
 
     <div class="section no-print">
@@ -232,7 +233,7 @@
     <div class="section">
       <div class="section-header-row">
         <h2>🔴 Firmadas, sin facturar</h2>
-        <button class="btn-small no-print" id="btnDescargarSinFacturar">Descargar CSV</button>
+        <button class="btn-small no-print" id="btnDescargarSinFacturar">Descargar Excel</button>
       </div>
       <p class="section-note">Escrituras que no tienen ningún recibo asociado en Facturas Emitidas — la prioridad operativa.</p>
       <div class="table-wrap" id="tblSinFacturar"></div>
@@ -241,7 +242,7 @@
     <div class="section">
       <div class="section-header-row">
         <h2>🟡 Facturadas, pendientes de cobro</h2>
-        <button class="btn-small no-print" id="btnDescargarPendientes">Descargar CSV</button>
+        <button class="btn-small no-print" id="btnDescargarPendientes">Descargar Excel</button>
       </div>
       <p class="section-note">Tienen al menos un recibo con saldo pendiente.</p>
       <div class="table-wrap" id="tblPendientes"></div>
@@ -249,17 +250,26 @@
 
     <div class="section">
       <div class="section-header-row">
-        <h2>⚪ Facturas sin escritura correspondiente</h2>
-        <button class="btn-small no-print" id="btnDescargarSinEscritura">Descargar CSV</button>
+        <h2>⚪ Servicios sin escritura</h2>
+        <button class="btn-small no-print" id="btnDescargarServiciosSinEscritura">Descargar Excel</button>
       </div>
-      <p class="section-note">Expedientes facturados que no aparecen en el panel de escrituras firmadas de este mes — revisar caso por caso (pueden ser servicios sin escritura, como copias o gestorías, o una discrepancia de datos).</p>
-      <div class="table-wrap" id="tblSinEscritura"></div>
+      <p class="section-note">Expedientes de copias, gestorías u otros trámites sin escritura — identificados por el sufijo de letra en el número de expediente. No requieren revisión, es su comportamiento normal.</p>
+      <div class="table-wrap" id="tblServiciosSinEscritura"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header-row">
+        <h2>🟠 Posible rezago de meses anteriores</h2>
+        <button class="btn-small no-print" id="btnDescargarPosibleRezago">Descargar Excel</button>
+      </div>
+      <p class="section-note">Expedientes facturados este mes que no aparecen en el panel de escrituras firmadas — probablemente escrituras firmadas en un mes anterior, aunque también pueden señalar una discrepancia de datos. Vale la pena revisarlos.</p>
+      <div class="table-wrap" id="tblPosibleRezago"></div>
     </div>
 
     <div class="section">
       <div class="section-header-row">
         <h2>Conciliación completa</h2>
-        <button class="btn-small no-print" id="btnDescargarCompleta">Descargar CSV</button>
+        <button class="btn-small no-print" id="btnDescargarCompleta">Descargar Excel</button>
       </div>
       <p class="section-note">Todas las escrituras firmadas del mes con su estatus de facturación, para auditoría.</p>
       <details class="full-table">
@@ -738,18 +748,173 @@
   }
 
   // ============================================================
-  // EXPORTACIÓN — descarga CSV y reporte imprimible/PDF
+  // EXPORTACIÓN — descarga .xlsx (nativo, sin librerías) y reporte imprimible/PDF
   // ============================================================
 
-  function toCsvValue(v) {
-    const s = String(v == null ? '' : v);
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  const CRC_TABLE = (function () {
+    const table = [];
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+  function crc32(bytes) {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
   }
-  function downloadCSV(filename, headers, rows) {
-    const lines = [headers.map(toCsvValue).join(',')];
-    rows.forEach(function (r) { lines.push(r.map(toCsvValue).join(',')); });
-    const csv = '﻿' + lines.join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+  function buildZip(files) {
+    const encoder = new TextEncoder();
+    const now = new Date();
+    const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
+    const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+
+    files.forEach(function (f) {
+      const nameBytes = encoder.encode(f.name);
+      const data = f.data;
+      const crc = crc32(data);
+      const localHeaderOffset = offset;
+
+      const local = new Uint8Array(30 + nameBytes.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(6, 0, true);
+      lv.setUint16(8, 0, true);
+      lv.setUint16(10, dosTime, true);
+      lv.setUint16(12, dosDate, true);
+      lv.setUint32(14, crc, true);
+      lv.setUint32(18, data.length, true);
+      lv.setUint32(22, data.length, true);
+      lv.setUint16(26, nameBytes.length, true);
+      lv.setUint16(28, 0, true);
+      local.set(nameBytes, 30);
+      localParts.push(local, data);
+      offset += local.length + data.length;
+
+      const central = new Uint8Array(46 + nameBytes.length);
+      const cv = new DataView(central.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint16(12, dosTime, true);
+      cv.setUint16(14, dosDate, true);
+      cv.setUint32(16, crc, true);
+      cv.setUint32(20, data.length, true);
+      cv.setUint32(24, data.length, true);
+      cv.setUint16(28, nameBytes.length, true);
+      cv.setUint32(42, localHeaderOffset, true);
+      central.set(nameBytes, 46);
+      centralParts.push(central);
+    });
+
+    const centralStart = offset;
+    const centralSize = centralParts.reduce(function (s, p) { return s + p.length; }, 0);
+
+    const eocd = new Uint8Array(22);
+    const ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, files.length, true);
+    ev.setUint16(10, files.length, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, centralStart, true);
+
+    const allParts = localParts.concat(centralParts, [eocd]);
+    const totalLen = allParts.reduce(function (s, p) { return s + p.length; }, 0);
+    const result = new Uint8Array(totalLen);
+    let pos = 0;
+    allParts.forEach(function (p) { result.set(p, pos); pos += p.length; });
+    return result;
+  }
+
+  function xmlEscape(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  }
+  function colIndexToLetter(idx) {
+    let s = '';
+    idx += 1;
+    while (idx > 0) {
+      const rem = (idx - 1) % 26;
+      s = String.fromCharCode(65 + rem) + s;
+      idx = Math.floor((idx - 1) / 26);
+    }
+    return s;
+  }
+  function buildSheetXml(headers, rows) {
+    const allRows = [headers].concat(rows);
+    const xmlRows = allRows.map(function (rowArr, rIdx) {
+      const rNum = rIdx + 1;
+      const cells = rowArr.map(function (val, cIdx) {
+        const ref = colIndexToLetter(cIdx) + rNum;
+        if (typeof val === 'number' && isFinite(val)) {
+          return '<c r="' + ref + '"><v>' + val + '</v></c>';
+        }
+        const text = val == null ? '' : String(val);
+        return '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEscape(text) + '</t></is></c>';
+      }).join('');
+      return '<row r="' + rNum + '">' + cells + '</row>';
+    }).join('');
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<sheetData>' + xmlRows + '</sheetData></worksheet>';
+  }
+
+  const XLSX_CONTENT_TYPES =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    '</Types>';
+  const XLSX_RELS =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+    '</Relationships>';
+  const XLSX_WORKBOOK =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheets><sheet name="Datos" sheetId="1" r:id="rId1"/></sheets></workbook>';
+  const XLSX_WORKBOOK_RELS =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    '</Relationships>';
+  const XLSX_STYLES =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
+    '</styleSheet>';
+
+  function downloadXLSX(filename, headers, rows) {
+    const encoder = new TextEncoder();
+    const files = [
+      { name: '[Content_Types].xml', data: encoder.encode(XLSX_CONTENT_TYPES) },
+      { name: '_rels/.rels', data: encoder.encode(XLSX_RELS) },
+      { name: 'xl/workbook.xml', data: encoder.encode(XLSX_WORKBOOK) },
+      { name: 'xl/_rels/workbook.xml.rels', data: encoder.encode(XLSX_WORKBOOK_RELS) },
+      { name: 'xl/styles.xml', data: encoder.encode(XLSX_STYLES) },
+      { name: 'xl/worksheets/sheet1.xml', data: encoder.encode(buildSheetXml(headers, rows)) }
+    ];
+    const zipBytes = buildZip(files);
+    const blob = new Blob([zipBytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = filename;
@@ -760,12 +925,13 @@
     document.getElementById(btnId).addEventListener('click', function () {
       const data = state.exports && state.exports[exportKey];
       if (!data || data.rows.length === 0) return;
-      downloadCSV(filenamePrefix + '.csv', data.headers, data.rows);
+      downloadXLSX(filenamePrefix + '.xlsx', data.headers, data.rows);
     });
   }
   wireDownload('btnDescargarSinFacturar', 'sinFacturar', 'escrituras-sin-facturar');
   wireDownload('btnDescargarPendientes', 'pendientes', 'facturadas-pendientes-de-cobro');
-  wireDownload('btnDescargarSinEscritura', 'sinEscritura', 'facturas-sin-escritura');
+  wireDownload('btnDescargarServiciosSinEscritura', 'serviciosSinEscritura', 'servicios-sin-escritura');
+  wireDownload('btnDescargarPosibleRezago', 'posibleRezago', 'posible-rezago-otros-meses');
   wireDownload('btnDescargarCompleta', 'completa', 'conciliacion-completa');
 
   document.getElementById('btnDescargarPDF').addEventListener('click', function () { window.print(); });
@@ -780,6 +946,10 @@
     document.getElementById('printMeta').textContent = 'Reporte generado el ' + fecha + (filtros.length ? ' — ' + filtros.join(' · ') : '');
   });
 
+  function esServicioSinEscritura(expediente) {
+    return /^\d+[A-Za-z]/.test(String(expediente || '').trim());
+  }
+
   function render() {
     const abFilter = document.getElementById('filterAbogado').value;
     const emFilter = document.getElementById('filterEmpresa').value;
@@ -790,18 +960,26 @@
     const pendientes = all.filter(function (r) { return r.status === 'pendiente_cobro'; });
     const cobradas = all.filter(function (r) { return r.status === 'facturada_cobrada'; });
     const sinEscritura = state.reconciliation.facturasSinEscritura;
+    const serviciosSinEscritura = sinEscritura.filter(function (r) { return esServicioSinEscritura(r.expediente); });
+    const posibleRezago = sinEscritura.filter(function (r) { return !esServicioSinEscritura(r.expediente); });
 
-    const totalFacturado = all.reduce(function (s, r) { return s + r.totalFacturado; }, 0);
-    const totalPendiente = all.reduce(function (s, r) { return s + r.totalSaldo; }, 0);
+    const facturadoEscrituras = all.reduce(function (s, r) { return s + r.totalFacturado; }, 0);
+    const pendienteEscrituras = all.reduce(function (s, r) { return s + r.totalSaldo; }, 0);
+    const facturadoSinEscritura = sinEscritura.reduce(function (s, r) { return s + r.totalFacturado; }, 0);
+    const pendienteSinEscritura = sinEscritura.reduce(function (s, r) { return s + r.totalSaldo; }, 0);
+    const totalFacturadoMes = facturadoEscrituras + facturadoSinEscritura;
+    const totalPendienteMes = pendienteEscrituras + pendienteSinEscritura;
 
     document.getElementById('kpiGrid').innerHTML = [
       kpiCard(all.length, 'Escrituras del mes', ''),
       kpiCard(sinFacturar.length, 'Sin facturar', sinFacturar.length > 0 ? 'flag-red' : ''),
       kpiCard(pendientes.length, 'Pendientes de cobro', pendientes.length > 0 ? 'flag-amber' : ''),
       kpiCard(cobradas.length, 'Facturadas y cobradas', 'flag-green'),
-      kpiCard(sinEscritura.length, 'Facturas sin escritura', sinEscritura.length > 0 ? 'flag-amber' : ''),
-      kpiCard(fmtMoney(totalFacturado), 'Total facturado', ''),
-      kpiCard(fmtMoney(totalPendiente), 'Total pendiente de cobro', totalPendiente > 0 ? 'flag-amber' : '')
+      kpiCard(serviciosSinEscritura.length, 'Servicios sin escritura', ''),
+      kpiCard(posibleRezago.length, 'Posible rezago de otros meses', posibleRezago.length > 0 ? 'flag-amber' : ''),
+      kpiCard(fmtMoney(totalFacturadoMes), 'Total facturado (todo julio)', ''),
+      kpiCard(fmtMoney(facturadoEscrituras), 'Facturado de escrituras de este mes', ''),
+      kpiCard(fmtMoney(totalPendienteMes), 'Total pendiente de cobro', totalPendienteMes > 0 ? 'flag-amber' : '')
     ].join('');
 
     renderTable('tblSinFacturar', sinFacturar,
@@ -814,10 +992,15 @@
       function (r) { return [r.expediente, r.cliente, r.numRecibos, fmtMoney(r.totalFacturado), fmtMoney(r.totalSaldo)]; },
       'No hay facturas pendientes de cobro con estos filtros.');
 
-    renderTable('tblSinEscritura', sinEscritura,
+    renderTable('tblServiciosSinEscritura', serviciosSinEscritura,
       ['Expediente', 'Cliente', 'Escritura referenciada', 'Recibos', 'Monto facturado'],
       function (r) { return [r.expediente, r.cliente, r.escritura || '—', r.numRecibos, fmtMoney(r.totalFacturado)]; },
-      'Todas las facturas corresponden a una escritura del panel.');
+      'No hay servicios sin escritura este mes.');
+
+    renderTable('tblPosibleRezago', posibleRezago,
+      ['Expediente', 'Cliente', 'Escritura referenciada', 'Recibos', 'Monto facturado'],
+      function (r) { return [r.expediente, r.cliente, r.escritura || '—', r.numRecibos, fmtMoney(r.totalFacturado)]; },
+      'No hay expedientes de otros meses facturados este mes.');
 
     document.getElementById('fullCount').textContent = all.length;
     renderTable('tblCompleta', all,
@@ -832,15 +1015,19 @@
       },
       pendientes: {
         headers: ['Expediente', 'Cliente', 'Recibos', 'Facturado', 'Saldo pendiente'],
-        rows: pendientes.map(function (r) { return [r.expediente, r.cliente, r.numRecibos, fmtMoney(r.totalFacturado), fmtMoney(r.totalSaldo)]; })
+        rows: pendientes.map(function (r) { return [r.expediente, r.cliente, r.numRecibos, r.totalFacturado, r.totalSaldo]; })
       },
-      sinEscritura: {
+      serviciosSinEscritura: {
         headers: ['Expediente', 'Cliente', 'Escritura referenciada', 'Recibos', 'Monto facturado'],
-        rows: sinEscritura.map(function (r) { return [r.expediente, r.cliente, r.escritura || '—', r.numRecibos, fmtMoney(r.totalFacturado)]; })
+        rows: serviciosSinEscritura.map(function (r) { return [r.expediente, r.cliente, r.escritura || '—', r.numRecibos, r.totalFacturado]; })
+      },
+      posibleRezago: {
+        headers: ['Expediente', 'Cliente', 'Escritura referenciada', 'Recibos', 'Monto facturado'],
+        rows: posibleRezago.map(function (r) { return [r.expediente, r.cliente, r.escritura || '—', r.numRecibos, r.totalFacturado]; })
       },
       completa: {
         headers: ['Expediente', 'Escritura', 'Fecha Firma', 'Cliente', 'Abogado', 'Estatus', 'Facturado', 'Saldo'],
-        rows: all.map(function (r) { return [r.expediente, r.escritura, r.fecha, r.cliente, r.abogado, statusLabel(r.status), fmtMoney(r.totalFacturado), fmtMoney(r.totalSaldo)]; })
+        rows: all.map(function (r) { return [r.expediente, r.escritura, r.fecha, r.cliente, r.abogado, statusLabel(r.status), r.totalFacturado, r.totalSaldo]; })
       }
     };
   }
