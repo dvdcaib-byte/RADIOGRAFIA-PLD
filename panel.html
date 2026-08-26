@@ -140,7 +140,9 @@
 
   var SUPABASE_URL = 'https://cnlmwlbdlmkifaqwpbak.supabase.co';
   var SUPABASE_ANON_KEY = 'sb_publishable_6QLQ5KQo1RZf44DpnH3oyg_iaWEIg5W';
-  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storage: window.sessionStorage }
+  });
 
   function qs(name) {
     return new URLSearchParams(window.location.search).get(name);

@@ -36,7 +36,9 @@
     return;
   }
 
-  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storage: window.sessionStorage }
+  });
   window.__accessGateClient = client;
 
   function revealContent() {
