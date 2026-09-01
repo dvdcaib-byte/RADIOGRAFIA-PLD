@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesa de Control Notarial</title>
+<style>html.access-gate-hidden body { display: none; }</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="access-gate.js" data-tool-slug="mesa-control-notarial"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #EEF1EE;
+    --paper-raised: #F8F8F3;
+    --ink: #16202B;
+    --ink-soft: #3C4750;
+    --line: #D6DBD4;
+    --gold: #93641F;
+    --gold-soft: #E4D6BC;
+    --brick: #9B3226;
+    --brick-soft: #EFD7D2;
+    --teal: #2F5D57;
+    --teal-soft: #D6E3E0;
+    --green: #2F6B3A;
+    --green-soft: #D9E8DA;
+    --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 8px 24px rgba(22,32,43,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+      --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+      --teal: #7FAFA6; --teal-soft: #1E2E2C; --green: #7FBF8A; --green-soft: #1E2E20;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+    --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+    --teal: #7FAFA6; --teal-soft: #1E2E2C; --green: #7FBF8A; --green-soft: #1E2E20;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 900px; margin: 0 auto; padding: clamp(28px, 5vw, 56px) clamp(16px, 5vw, 40px) 80px; }
+
+  .back-link {
+    display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;
+    color: var(--ink-soft); text-decoration: none; margin-bottom: 20px;
+  }
+  .back-link:hover { color: var(--gold); }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.76rem; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--gold); margin: 0 0 12px; font-weight: 500;
+  }
+  h1 {
+    font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: clamp(1.7rem, 3.6vw, 2.5rem);
+    margin: 0; line-height: 1.12; text-wrap: balance;
+  }
+  .title-rule { width: 56px; height: 3px; background: var(--gold); border-radius: 2px; margin: 20px 0; }
+  .lede {
+    font-size: 1.02rem; color: var(--ink-soft); max-width: 720px; line-height: 1.6; margin: 0 0 8px;
+  }
+  h2 {
+    font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 1.3rem; margin: 0 0 4px;
+  }
+  .section { margin-top: 44px; }
+  .section-note { font-size: 0.88rem; color: var(--ink-soft); margin: 4px 0 16px; max-width: 720px; }
+
+  /* --- Formulario --- */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+  @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; }
+  .field.span-2 { grid-column: 1 / -1; }
+  .field label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--ink-soft); margin-bottom: 6px;
+  }
+  .field input[type="text"], .field input[type="number"], .field select, .field textarea {
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 0.92rem; padding: 9px 11px;
+    border-radius: 4px; border: 1px solid var(--line); background: var(--paper-raised); color: var(--ink);
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .radio-row { display: flex; gap: 20px; align-items: center; margin-top: 4px; }
+  .radio-row label { font-family: 'IBM Plex Sans', sans-serif; text-transform: none; letter-spacing: normal; font-size: 0.92rem; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .checkbox-row label { font-family: 'IBM Plex Sans', sans-serif; text-transform: none; letter-spacing: normal; font-size: 0.92rem; color: var(--ink); }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; letter-spacing: 0.03em;
+    padding: 11px 22px; border-radius: 4px; border: 1px solid var(--gold); background: var(--gold);
+    color: var(--paper); cursor: pointer; margin-top: 24px;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn:not(:disabled):hover { opacity: 0.88; }
+  .btn-small {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; letter-spacing: 0.03em;
+    padding: 7px 14px; border-radius: 4px; border: 1px solid var(--line); background: none;
+    color: var(--ink-soft); cursor: pointer; white-space: nowrap;
+  }
+  .btn-small:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-small:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .dz-error {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: var(--brick); margin-top: 12px;
+  }
+
+  .result-card {
+    margin-top: 20px; padding: 16px 18px; background: var(--paper-raised); border: 1px solid var(--line);
+    border-radius: 6px; box-shadow: var(--shadow);
+  }
+
+  .badge { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 9px; border-radius: 4px; white-space: nowrap; margin: 2px 4px 2px 0; }
+  .badge.red { background: var(--brick-soft); color: var(--brick); }
+  .badge.amber { background: var(--gold-soft); color: var(--gold); }
+  .badge.green { background: var(--green-soft); color: var(--green); }
+  .badge.gray { background: var(--line); color: var(--ink-soft); }
+
+  .expediente-card {
+    margin-top: 16px; padding: 16px 18px; background: var(--paper-raised); border: 1px solid var(--line);
+    border-radius: 6px; box-shadow: var(--shadow);
+  }
+
+  .table-wrap { margin-top: 16px; overflow-x: auto; }
+  table.data-table {
+    width: 100%; border-collapse: collapse; background: var(--paper-raised); border: 1px solid var(--line);
+    border-radius: 4px; overflow: hidden; box-shadow: var(--shadow); min-width: 480px;
+  }
+  table.data-table th {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-soft); text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--paper);
+  }
+  table.data-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 0.9rem; vertical-align: top; color: var(--ink); }
+  table.data-table tbody tr:last-child td { border-bottom: none; }
+  table.data-table td.mono { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .empty-state { padding: 20px 4px; color: var(--ink-soft); font-size: 0.9rem; }
+
+  details.full-table summary { cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--teal); margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <a class="back-link" href="panel.html">← Volver al portal</a>
+
+  <p class="eyebrow">Herramienta operativa — Vega Ibarra</p>
+  <h1>Mesa de Control Notarial</h1>
+  <div class="title-rule"></div>
+  <p class="lede">Captura el cuestionario de identificación de cliente para un acto jurídico nuevo — el sistema clasifica automáticamente el acto contra la matriz de actividades vulnerables y lo envía a revisión. La Encargada de Mesa de Control autoriza el folio o lo rechaza con observaciones.</p>
+
+  <div class="section" id="formSection">
+    <h2>Nuevo expediente</h2>
+    <p class="section-note">Todos los campos son de este cuestionario; el tipo de acto y el monto de la operación son los que alimentan la clasificación PLD.</p>
+
+    <form id="cuestionarioForm">
+      <div class="field">
+        <label>Tipo de persona</label>
+        <div class="radio-row">
+          <label><input type="radio" name="tipoPersona" value="fisica" checked> Física</label>
+          <label><input type="radio" name="tipoPersona" value="moral"> Moral</label>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field span-2">
+          <label for="fNombre">Nombre completo o razón social *</label>
+          <input type="text" id="fNombre" required>
+        </div>
+        <div class="field">
+          <label for="fRfc">RFC</label>
+          <input type="text" id="fRfc">
+        </div>
+        <div class="field" id="curpField">
+          <label for="fCurp">CURP</label>
+          <input type="text" id="fCurp">
+        </div>
+        <div class="field span-2">
+          <label for="fDomicilio">Domicilio</label>
+          <input type="text" id="fDomicilio">
+        </div>
+        <div class="field span-2">
+          <label for="fActividad">Actividad económica / giro</label>
+          <input type="text" id="fActividad">
+        </div>
+        <div class="field">
+          <label for="fOrigen">Origen de los recursos</label>
+          <textarea id="fOrigen"></textarea>
+        </div>
+        <div class="field">
+          <label for="fDestino">Destino de los recursos</label>
+          <textarea id="fDestino"></textarea>
+        </div>
+        <div class="field span-2">
+          <label for="fBeneficiario">Beneficiario controlador</label>
+          <input type="text" id="fBeneficiario" placeholder="Nombre e identificación del beneficiario controlador">
+        </div>
+        <div class="field span-2 checkbox-row">
+          <input type="checkbox" id="fPep" style="width:auto;margin:0;">
+          <label for="fPep" style="margin:0;">¿Es Persona Políticamente Expuesta (PEP)?</label>
+        </div>
+        <div class="field">
+          <label for="fNotario">Notaría *</label>
+          <select id="fNotario" required></select>
+        </div>
+        <div class="field">
+          <label for="fActo">Tipo de acto jurídico *</label>
+          <select id="fActo" required></select>
+        </div>
+        <div class="field">
+          <label for="fMonto">Monto de la operación (MXN) *</label>
+          <input type="number" id="fMonto" min="0" step="0.01" required>
+        </div>
+      </div>
+
+      <button class="btn" type="submit" id="btnEnviar">Enviar a revisión</button>
+      <div class="dz-error" id="formError" style="display:none"></div>
+    </form>
+
+    <div class="result-card" id="resultCard" style="display:none"></div>
+  </div>
+
+  <div class="section" id="revisionSection" style="display:none">
+    <h2>Mesa de control</h2>
+    <p class="section-note">Expedientes pendientes de revisión, del más antiguo al más reciente.</p>
+    <div id="pendientesList"></div>
+
+    <details class="full-table">
+      <summary>Ver expedientes procesados recientemente</summary>
+      <div class="table-wrap" id="procesadosList"></div>
+    </details>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var client = window.__accessGateClient;
+  var state = { notarios: [], reglas: [], config: {} };
+  var revisionVisible = false;
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function waitForClient(cb) {
+    if (client) { cb(); return; }
+    var tries = 0;
+    var iv = setInterval(function () {
+      client = window.__accessGateClient;
+      tries++;
+      if (client || tries > 100) { clearInterval(iv); if (client) cb(); }
+    }, 50);
+  }
+
+  async function loadCatalogos() {
+    var notariosRes = await client.from('mcn_notarios').select('id, nombre, prefijo_folio').order('nombre');
+    state.notarios = notariosRes.data || [];
+
+    var reglasRes = await client.from('mcn_reglas_pld').select('id, tipo_acto, nombre_display, vigente_desde').order('vigente_desde', { ascending: false });
+    var reglasAll = reglasRes.data || [];
+    var seen = {};
+    var reglasVigentes = [];
+    reglasAll.forEach(function (r) {
+      if (!seen[r.tipo_acto]) { seen[r.tipo_acto] = true; reglasVigentes.push(r); }
+    });
+    reglasVigentes.sort(function (a, b) { return a.nombre_display.localeCompare(b.nombre_display); });
+    state.reglas = reglasVigentes;
+
+    var configRes = await client.from('mcn_config').select('clave, valor');
+    (configRes.data || []).forEach(function (c) { state.config[c.clave] = c.valor; });
+
+    populateSelects();
+  }
+
+  function populateSelects() {
+    var notarioSel = document.getElementById('fNotario');
+    notarioSel.innerHTML = state.notarios.map(function (n) {
+      return '<option value="' + n.id + '">' + escapeHtml(n.nombre) + ' (' + escapeHtml(n.prefijo_folio) + ')</option>';
+    }).join('');
+    var actoSel = document.getElementById('fActo');
+    actoSel.innerHTML = state.reglas.map(function (r) {
+      return '<option value="' + r.id + '">' + escapeHtml(r.nombre_display) + '</option>';
+    }).join('');
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="tipoPersona"]'), function (radio) {
+    radio.addEventListener('change', function () {
+      var esFisica = document.querySelector('input[name="tipoPersona"]:checked').value === 'fisica';
+      document.getElementById('curpField').style.display = esFisica ? 'flex' : 'none';
+    });
+  });
+
+  document.getElementById('cuestionarioForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var errorBox = document.getElementById('formError');
+    errorBox.style.display = 'none';
+    var btn = document.getElementById('btnEnviar');
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+
+    try {
+      var tipoPersona = document.querySelector('input[name="tipoPersona"]:checked').value;
+      var nombre = document.getElementById('fNombre').value.trim();
+      var rfc = document.getElementById('fRfc').value.trim();
+      var curp = document.getElementById('fCurp').value.trim();
+      var domicilio = document.getElementById('fDomicilio').value.trim();
+      var actividadEconomica = document.getElementById('fActividad').value.trim();
+      var origenRecursos = document.getElementById('fOrigen').value.trim();
+      var destinoRecursos = document.getElementById('fDestino').value.trim();
+      var esPep = document.getElementById('fPep').checked;
+      var beneficiario = document.getElementById('fBeneficiario').value.trim();
+      var notarioId = document.getElementById('fNotario').value;
+      var reglaId = document.getElementById('fActo').value;
+      var monto = parseFloat(document.getElementById('fMonto').value);
+
+      if (!nombre || !notarioId || !reglaId || !monto || monto <= 0) {
+        throw new Error('Completa los campos obligatorios: nombre/razón social, notaría, tipo de acto y monto.');
+      }
+
+      var sessionRes = await client.auth.getSession();
+      var userId = sessionRes.data.session.user.id;
+
+      var clienteRes = await client.from('mcn_clientes').insert({
+        tipo_persona: tipoPersona,
+        nombre_razon_social: nombre,
+        rfc: rfc || null,
+        curp: curp || null,
+        domicilio: domicilio || null,
+        actividad_economica: actividadEconomica || null,
+        origen_recursos: origenRecursos || null,
+        destino_recursos: destinoRecursos || null,
+        es_pep: esPep,
+        beneficiario_controlador: beneficiario || null,
+        creado_por: userId
+      }).select('id').single();
+      if (clienteRes.error) throw new Error(clienteRes.error.message);
+      var clienteId = clienteRes.data.id;
+
+      var reglaRes = await client.from('mcn_reglas_pld').select('*').eq('id', reglaId).single();
+      if (reglaRes.error) throw new Error(reglaRes.error.message);
+      var regla = reglaRes.data;
+
+      var valorUma = parseFloat(state.config.valor_uma_diario || '0');
+      var montoUma = valorUma > 0 ? monto / valorUma : 0;
+
+      var esVulnerable = !!regla.es_actividad_vulnerable;
+      var requiereAviso = esVulnerable && regla.umbral_aviso_uma != null && montoUma >= parseFloat(regla.umbral_aviso_uma);
+      var requiereRestriccion = !!regla.restriccion_efectivo && regla.umbral_restriccion_uma != null && montoUma >= parseFloat(regla.umbral_restriccion_uma);
+
+      var expedienteRes = await client.from('mcn_expedientes').insert({
+        notario_id: notarioId,
+        regla_pld_id: reglaId,
+        cliente_id: clienteId,
+        monto_operacion: monto,
+        monto_operacion_uma: montoUma,
+        es_actividad_vulnerable: esVulnerable,
+        requiere_aviso: requiereAviso,
+        requiere_restriccion_efectivo: requiereRestriccion,
+        estado: 'enviado',
+        creado_por: userId
+      }).select('id').single();
+      if (expedienteRes.error) throw new Error(expedienteRes.error.message);
+
+      showResultCard(esVulnerable, requiereAviso, requiereRestriccion);
+      document.getElementById('cuestionarioForm').reset();
+      document.getElementById('curpField').style.display = 'flex';
+      if (revisionVisible) { loadPendientes(); }
+    } catch (err) {
+      errorBox.textContent = err.message || String(err);
+      errorBox.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enviar a revisión';
+    }
+  });
+
+  function showResultCard(vulnerable, aviso, restriccion) {
+    var card = document.getElementById('resultCard');
+    card.innerHTML =
+      '<p><strong>Expediente enviado a revisión por la Encargada de Mesa de Control.</strong></p>' +
+      '<div><span class="badge ' + (vulnerable ? 'amber' : 'gray') + '">Actividad Vulnerable: ' + (vulnerable ? 'Sí' : 'No') + '</span>' +
+      '<span class="badge ' + (aviso ? 'red' : 'gray') + '">Requiere Aviso UIF: ' + (aviso ? 'Sí' : 'No') + '</span>' +
+      '<span class="badge ' + (restriccion ? 'red' : 'gray') + '">Restricción de efectivo: ' + (restriccion ? 'Sí' : 'No') + '</span></div>';
+    card.style.display = 'block';
+  }
+
+  // ---- Mesa de control (solo si is_encargada) ----
+
+  async function initRevision() {
+    var res = await client.rpc('is_encargada');
+    if (res.error || !res.data) return;
+    revisionVisible = true;
+    document.getElementById('revisionSection').style.display = 'block';
+    loadPendientes();
+    loadProcesados();
+  }
+
+  function fmtMoney(n) {
+    return '$' + Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  async function loadPendientes() {
+    var res = await client.from('mcn_expedientes')
+      .select('id, monto_operacion, es_actividad_vulnerable, requiere_aviso, requiere_restriccion_efectivo, creado_en, mcn_clientes(nombre_razon_social), mcn_notarios(nombre,prefijo_folio), mcn_reglas_pld(nombre_display)')
+      .eq('estado', 'enviado')
+      .order('creado_en', { ascending: true });
+
+    var list = document.getElementById('pendientesList');
+    var rows = res.data || [];
+    if (res.error) { list.innerHTML = '<div class="dz-error">' + escapeHtml(res.error.message) + '</div>'; return; }
+    if (rows.length === 0) { list.innerHTML = '<div class="empty-state">No hay expedientes pendientes de revisión.</div>'; return; }
+
+    list.innerHTML = rows.map(rowHtml).join('');
+    rows.forEach(function (r) { wireRowButtons(r.id); });
+  }
+
+  function rowHtml(r) {
+    var cliente = r.mcn_clientes ? r.mcn_clientes.nombre_razon_social : '';
+    var acto = r.mcn_reglas_pld ? r.mcn_reglas_pld.nombre_display : '';
+    var notario = r.mcn_notarios ? r.mcn_notarios.nombre : '';
+    var prefijo = r.mcn_notarios ? r.mcn_notarios.prefijo_folio : '';
+    return '<div class="expediente-card" id="card-' + r.id + '">' +
+      '<div><strong>' + escapeHtml(cliente) + '</strong> — ' + escapeHtml(acto) + '</div>' +
+      '<div class="section-note">Notaría: ' + escapeHtml(notario) + ' (' + escapeHtml(prefijo) + ') · Monto: ' + fmtMoney(r.monto_operacion) + ' · Capturado: ' + new Date(r.creado_en).toLocaleString('es-MX') + '</div>' +
+      '<div>' +
+        '<span class="badge ' + (r.es_actividad_vulnerable ? 'amber' : 'gray') + '">Vulnerable: ' + (r.es_actividad_vulnerable ? 'Sí' : 'No') + '</span>' +
+        '<span class="badge ' + (r.requiere_aviso ? 'red' : 'gray') + '">Aviso UIF: ' + (r.requiere_aviso ? 'Sí' : 'No') + '</span>' +
+        '<span class="badge ' + (r.requiere_restriccion_efectivo ? 'red' : 'gray') + '">Restricción efectivo: ' + (r.requiere_restriccion_efectivo ? 'Sí' : 'No') + '</span>' +
+      '</div>' +
+      '<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+        '<button class="btn-small" data-action="autorizar" data-id="' + r.id + '">Autorizar folio</button>' +
+        '<button class="btn-small" data-action="rechazar" data-id="' + r.id + '">Rechazar</button>' +
+        '<input type="text" class="rechazo-comentario" data-id="' + r.id + '" placeholder="Motivo del rechazo…" style="display:none;flex:1;min-width:200px;padding:7px 10px;border-radius:4px;border:1px solid var(--line);background:var(--paper);color:var(--ink);">' +
+      '</div>' +
+      '<div class="dz-error" id="rowError-' + r.id + '"></div>' +
+    '</div>';
+  }
+
+  function wireRowButtons(id) {
+    var card = document.getElementById('card-' + id);
+    if (!card) return;
+    var autorizarBtn = card.querySelector('[data-action="autorizar"]');
+    var rechazarBtn = card.querySelector('[data-action="rechazar"]');
+    var comentarioInput = card.querySelector('.rechazo-comentario');
+    var errorBox = document.getElementById('rowError-' + id);
+
+    autorizarBtn.addEventListener('click', async function () {
+      autorizarBtn.disabled = true;
+      errorBox.textContent = '';
+      var res = await client.rpc('autorizar_expediente', { p_expediente_id: id });
+      if (res.error) { errorBox.textContent = res.error.message; autorizarBtn.disabled = false; return; }
+      alert('Folio asignado: ' + res.data);
+      loadPendientes();
+      loadProcesados();
+    });
+
+    rechazarBtn.addEventListener('click', async function () {
+      if (comentarioInput.style.display === 'none') {
+        comentarioInput.style.display = 'inline-block';
+        comentarioInput.focus();
+        return;
+      }
+      rechazarBtn.disabled = true;
+      errorBox.textContent = '';
+      var res = await client.rpc('rechazar_expediente', { p_expediente_id: id, p_comentario: comentarioInput.value.trim() });
+      if (res.error) { errorBox.textContent = res.error.message; rechazarBtn.disabled = false; return; }
+      loadPendientes();
+      loadProcesados();
+    });
+  }
+
+  async function loadProcesados() {
+    var res = await client.from('mcn_expedientes')
+      .select('id, folio, estado, comentario_rechazo, revisado_en, mcn_clientes(nombre_razon_social)')
+      .in('estado', ['autorizado', 'rechazado'])
+      .order('revisado_en', { ascending: false })
+      .limit(20);
+
+    var list = document.getElementById('procesadosList');
+    var rows = res.data || [];
+    if (res.error) { list.innerHTML = '<div class="dz-error">' + escapeHtml(res.error.message) + '</div>'; return; }
+    if (rows.length === 0) { list.innerHTML = '<div class="empty-state">Sin expedientes procesados todavía.</div>'; return; }
+
+    list.innerHTML = '<table class="data-table"><thead><tr><th>Cliente</th><th>Estado</th><th>Folio / Motivo</th><th>Fecha</th></tr></thead><tbody>' +
+      rows.map(function (r) {
+        var cliente = r.mcn_clientes ? r.mcn_clientes.nombre_razon_social : '';
+        var estadoBadge = r.estado === 'autorizado' ? '<span class="badge green">Autorizado</span>' : '<span class="badge red">Rechazado</span>';
+        var detalle = r.folio || r.comentario_rechazo || '';
+        var fecha = r.revisado_en ? new Date(r.revisado_en).toLocaleString('es-MX') : '';
+        return '<tr><td>' + escapeHtml(cliente) + '</td><td>' + estadoBadge + '</td><td>' + escapeHtml(detalle) + '</td><td class="mono">' + fecha + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+
+  waitForClient(function () {
+    loadCatalogos();
+    initRevision();
+  });
+})();
+</script>
+</body>
+</html>
