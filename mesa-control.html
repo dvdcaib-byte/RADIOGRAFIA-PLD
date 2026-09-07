@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesa de Control — Vega Ibarra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>html.access-gate-hidden body { display: none; }</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<style>
+  :root {
+    --paper: #EEF1EE; --paper-raised: #F8F8F3; --ink: #16202B; --ink-soft: #3C4750;
+    --line: #D6DBD4; --gold: #93641F; --gold-soft: #E4D6BC; --brick: #9B3226;
+    --brick-soft: #EFD7D2; --teal: #2F5D57; --teal-soft: #D6E3E0;
+    --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 8px 24px rgba(22,32,43,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+      --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+      --teal: #7FAFA6; --teal-soft: #1E2E2C; --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+    --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+    --teal: #7FAFA6; --teal-soft: #1E2E2C; --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; margin: 0; }
+  .eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--gold); margin: 0 0 6px; }
+  .page { max-width: 1000px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .top-bar { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .top-bar h1 { font-size: 1.7rem; }
+  .top-bar-links { display: flex; gap: 10px; align-items: center; }
+  .link-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--ink-soft);
+    text-decoration: none; border: 1px solid var(--line); border-radius: 4px; padding: 7px 14px;
+    cursor: pointer; background: none; }
+  .link-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  .tabs { display: flex; gap: 4px; margin: 24px 0 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tab-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; padding: 10px 16px;
+    background: none; border: none; border-bottom: 2px solid transparent; color: var(--ink-soft); cursor: pointer; }
+  .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .card { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px;
+    padding: 20px 22px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  .empty-state { color: var(--ink-soft); font-size: 0.92rem; padding: 24px 0; text-align: center; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--ink-soft); border-bottom: 1px solid var(--line); padding: 8px 10px; }
+  td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover td { background: var(--gold-soft); }
+
+  .badge { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 0.03em; border-radius: 3px; padding: 3px 9px; }
+  .badge-borrador { background: var(--line); color: var(--ink-soft); }
+  .badge-enviado { background: var(--gold-soft); color: var(--gold); }
+  .badge-autorizado { background: var(--teal-soft); color: var(--teal); }
+  .badge-rechazado { background: var(--brick-soft); color: var(--brick); }
+
+  .btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; letter-spacing: 0.02em;
+    padding: 9px 18px; border-radius: 4px; border: 1px solid var(--gold); background: var(--gold);
+    color: var(--paper); cursor: pointer; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn:not(:disabled):hover { opacity: 0.88; }
+  .btn-outline { background: none; color: var(--ink); border: 1px solid var(--line); }
+  .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-brick { background: var(--brick); border-color: var(--brick); }
+  .btn-teal { background: var(--teal); border-color: var(--teal); }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+  label { display: block; font-size: 0.8rem; color: var(--ink-soft); margin: 14px 0 5px; }
+  input, select, textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 4px;
+    background: var(--paper); color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; font-size: 0.92rem; }
+  textarea { min-height: 70px; resize: vertical; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .field-row { grid-template-columns: 1fr; } }
+  .hint { font-size: 0.78rem; color: var(--ink-soft); margin-top: 4px; }
+  .error-box { margin-top: 14px; font-size: 0.85rem; color: var(--brick); background: var(--brick-soft);
+    border-radius: 4px; padding: 10px 12px; display: none; }
+  .error-box.show { display: block; }
+  .notice-box { margin-top: 14px; font-size: 0.85rem; border-radius: 4px; padding: 10px 12px; }
+  .notice-vulnerable { background: var(--brick-soft); color: var(--brick); }
+  .notice-ok { background: var(--teal-soft); color: var(--teal); }
+
+  .doc-row { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .doc-row:last-child { border-bottom: none; }
+  .doc-status { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; }
+  .doc-status.ok { color: var(--teal); }
+  .doc-status.pending { color: var(--ink-soft); }
+
+  .kv { display: grid; grid-template-columns: 160px 1fr; gap: 6px 12px; font-size: 0.9rem; margin: 4px 0; }
+  .kv dt { color: var(--ink-soft); }
+  .kv dd { margin: 0; }
+
+  .back-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--ink-soft);
+    background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 14px; }
+  .back-link:hover { color: var(--gold); }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="top-bar">
+    <div>
+      <p class="eyebrow">Mesa de Control · Vega Ibarra</p>
+      <h1>Mesa de Control</h1>
+    </div>
+    <div class="top-bar-links">
+      <a class="link-btn" href="panel.html">Volver al portal</a>
+      <button class="link-btn" id="btnLogout">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-view="misExpedientes">Mis expedientes</button>
+    <button class="tab-btn" data-view="cola" id="tabCola" style="display:none">Cola de revisión</button>
+    <button class="tab-btn" data-view="vulnerables" id="tabVulnerables" style="display:none">Actividades vulnerables</button>
+  </div>
+
+  <div id="viewMisExpedientes" class="view active">
+    <div class="btn-row" style="margin-top:0;margin-bottom:16px;">
+      <button class="btn" id="btnNuevoExpediente">+ Nuevo expediente</button>
+    </div>
+    <div class="card"><div id="tablaMisExpedientes"><p class="empty-state">Cargando…</p></div></div>
+  </div>
+
+  <div id="viewCola" class="view">
+    <div class="card"><div id="tablaCola"><p class="empty-state">Cargando…</p></div></div>
+  </div>
+
+  <div id="viewVulnerables" class="view">
+    <div class="card"><div id="tablaVulnerables"><p class="empty-state">Cargando…</p></div></div>
+  </div>
+
+  <div id="viewNuevo" class="view">
+    <button class="back-link" data-back="misExpedientes">← Mis expedientes</button>
+    <div class="card">
+      <h2>Nuevo expediente</h2>
+      <div class="field-row">
+        <div><label>Notario</label><select id="fNotario"></select></div>
+        <div><label>Área</label>
+          <select id="fArea">
+            <option value="bancos">Bancos</option>
+            <option value="infonavit_fovissste">Infonavit-Fovissste</option>
+            <option value="inmobiliario">Inmobiliario</option>
+            <option value="corporativo">Corporativo</option>
+          </select>
+        </div>
+      </div>
+      <label>Expediente / ID DBA</label>
+      <input id="fDbaId" placeholder="Número de expediente en DBA Systems">
+      <label>Tipo de acto</label>
+      <select id="fActo"></select>
+      <div class="hint" id="documentosPreview"></div>
+      <div id="camposAdicionales"></div>
+
+      <h3 style="margin-top:22px;font-size:1.05rem;">Cliente</h3>
+      <label>Tipo de persona</label>
+      <select id="fTipoPersona">
+        <option value="fisica">Física</option>
+        <option value="moral">Moral</option>
+      </select>
+      <div class="field-row">
+        <div><label>RFC</label><input id="fRfc" placeholder="Buscar/crear por RFC"></div>
+        <div><label>CURP <span class="hint" style="display:inline">(solo persona física)</span></label><input id="fCurp"></div>
+      </div>
+      <p class="hint" id="clienteHint"></p>
+      <label>Nombre / razón social</label><input id="fNombreCliente">
+      <div class="field-row">
+        <div><label>Domicilio</label><input id="fDomicilio"></div>
+        <div><label>Actividad económica / giro</label><input id="fActividadEconomica"></div>
+      </div>
+      <div class="field-row">
+        <div><label>Origen de los recursos</label><input id="fOrigenRecursos"></div>
+        <div><label>Destino de los recursos</label><input id="fDestinoRecursos"></div>
+      </div>
+
+      <h3 style="margin-top:22px;font-size:1.05rem;">Beneficiario controlador — Formato 2</h3>
+      <p class="hint">Con fundamento en el art. 3 fracc. III LFPIORPI, art. 14 de su Reglamento y art. 3 fracc. VII de las RCG.</p>
+      <label>Ruta de determinación</label>
+      <select id="fBcRuta">
+        <option value="A">Ruta A — Persona física por cuenta propia</option>
+        <option value="B">Ruta B — Persona física por cuenta de un tercero</option>
+        <option value="C">Ruta C — Persona moral: estructura accionaria y control efectivo</option>
+        <option value="D">Ruta D — Fideicomiso u otra figura con beneficiarios múltiples</option>
+        <option value="E">Ruta E — No fue posible determinar</option>
+      </select>
+
+      <div id="bcRutaA" class="bc-ruta">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+          <input type="checkbox" id="fBcA_cuentaPropia" style="width:auto;">
+          <span style="margin:0;">El cliente manifiesta que actúa por cuenta propia y que el beneficio final lo obtiene él/ella — BC = el propio cliente</span>
+        </label>
+      </div>
+
+      <div id="bcRutaB" class="bc-ruta" style="display:none;">
+        <div class="field-row">
+          <div><label>Relación con el compareciente</label><input id="fBcB_relacion"></div>
+          <div><label>Datos disponibles del tercero (RFC/CURP, nacionalidad, domicilio)</label><input id="fBcB_datos"></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="fBcB_declaracion" style="width:auto;">
+          <span style="margin:0;">Manifestación/declaración firmada del compareciente sobre por cuenta de quién actúa</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="fBcB_identificacion" style="width:auto;">
+          <span style="margin:0;">Identificación del tercero beneficiario (si fue proporcionada)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="fBcB_documento" style="width:auto;">
+          <span style="margin:0;">Documento que justifica la relación (mandato, contrato, instrucción)</span>
+        </label>
+      </div>
+
+      <div id="bcRutaC" class="bc-ruta" style="display:none;">
+        <p class="hint">Información base recabada:</p>
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="fBcC_acta" style="width:auto;"><span style="margin:0;">Acta constitutiva y reformas relevantes</span></label>
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="fBcC_libro" style="width:auto;"><span style="margin:0;">Libro de socios/acciones o relación con porcentajes</span></label>
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="fBcC_organo" style="width:auto;"><span style="margin:0;">Órgano de administración y facultades</span></label>
+        <label>Determinación</label>
+        <select id="fBcC_determinacion">
+          <option value="propiedad">Se identificó por participación/derechos de voto sobre el umbral interno</option>
+          <option value="control_efectivo">No se identificó por propiedad — por control efectivo</option>
+        </select>
+        <div class="field-row" style="margin-top:12px;">
+          <div><label>BC 1 — nombre completo</label><input id="fBcC1_nombre"></div>
+          <div><label>BC 1 — % participación / medio de control</label><input id="fBcC1_medio"></div>
+        </div>
+        <div class="field-row">
+          <div><label>BC 1 — RFC/CURP</label><input id="fBcC1_id"></div>
+          <div><label>BC 1 — nacionalidad</label><input id="fBcC1_nacionalidad"></div>
+        </div>
+        <div class="field-row" style="margin-top:12px;">
+          <div><label>BC 2 (si aplica) — nombre completo</label><input id="fBcC2_nombre"></div>
+          <div><label>BC 2 — % participación / medio de control</label><input id="fBcC2_medio"></div>
+        </div>
+      </div>
+
+      <div id="bcRutaD" class="bc-ruta" style="display:none;">
+        <label>Partes identificadas</label>
+        <input id="fBcD_partes" placeholder="Fideicomitente(s), fiduciario, fideicomisario(s)">
+        <label>¿Quién obtiene el beneficio final y bajo qué condiciones?</label>
+        <textarea id="fBcD_beneficio"></textarea>
+        <div class="field-row">
+          <div><label>BC identificado — nombre</label><input id="fBcD_nombre"></div>
+          <div><label>BC identificado — datos (RFC/CURP, nacionalidad, domicilio)</label><input id="fBcD_datos"></div>
+        </div>
+      </div>
+
+      <div id="bcRutaE" class="bc-ruta" style="display:none;">
+        <label>Motivo</label>
+        <select id="fBcE_motivo">
+          <option value="sin_estructura">Cliente no proporcionó estructura/relación de socios/beneficiarios</option>
+          <option value="compleja_sin_soporte">Estructura compleja sin documentación soporte suficiente</option>
+          <option value="informacion_inconsistente">Información inconsistente/contradictoria</option>
+          <option value="otro">Otro</option>
+        </select>
+        <label>Medida adoptada</label>
+        <select id="fBcE_medida">
+          <option value="escalado_rec">Se escaló a REC/PLD para decisión</option>
+          <option value="info_adicional">Se solicitó información adicional al cliente</option>
+          <option value="detuvo_expediente">Se detuvo el avance del expediente (no se pidió folio)</option>
+          <option value="excepcion_autorizada">Se autorizó excepción documentada (solo con Vo.Bo. REC)</option>
+        </select>
+      </div>
+
+      <label style="margin-top:16px;">Conclusión final</label>
+      <select id="fBcConclusion">
+        <option value="si_existe">BC SÍ existe y fue identificado</option>
+        <option value="no_aplica">BC NO aplica / no procede</option>
+        <option value="no_determinado">No fue posible determinar BC (Ruta E)</option>
+      </select>
+      <label>Observaciones / justificación <span class="hint" style="display:inline">(obligatorio si NO aplica o no fue posible determinar)</span></label>
+      <textarea id="fBcObservaciones"></textarea>
+
+      <h3 style="margin-top:22px;font-size:1.05rem;">Persona Políticamente Expuesta (PEP)</h3>
+      <label>¿El cliente es PEP?</label>
+      <select id="fEsPep"><option value="no">No</option><option value="si">Sí</option></select>
+      <div id="pepDetalle" style="display:none;">
+        <div class="field-row">
+          <div><label>Cargo</label><input id="fPepCargo"></div>
+          <div><label>Dependencia / institución</label><input id="fPepDependencia"></div>
+        </div>
+        <div class="field-row">
+          <div><label>Nivel de gobierno</label>
+            <select id="fPepNivel"><option value="federal">Federal</option><option value="estatal">Estatal</option><option value="municipal">Municipal</option></select>
+          </div>
+          <div><label>Periodo</label><input id="fPepPeriodo" placeholder="Ej. 2024-2027"></div>
+        </div>
+        <label>Relación con el PEP</label>
+        <select id="fPepRelacion">
+          <option value="directo">Es la propia persona PEP</option>
+          <option value="familiar">Familiar de un PEP</option>
+          <option value="cercano">Persona cercana a un PEP</option>
+        </select>
+      </div>
+
+      <h3 style="margin-top:22px;font-size:1.05rem;">Datos de la operación</h3>
+      <div class="field-row">
+        <div><label>Monto (pesos)</label><input id="fMonto" type="number" min="0" step="0.01"></div>
+        <div><label>Forma de pago</label>
+          <select id="fFormaPago">
+            <option value="transferencia">Transferencia</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="cheque">Cheque</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:16px;">
+        <input type="checkbox" id="fActoCombinado" style="width:auto;">
+        <span style="margin:0;">El instrumento incluye algún otro acto además del principal</span>
+      </label>
+      <p class="hint" id="actoCombinadoHint" style="display:none;">Un instrumento con más de un acto no puede tratarse como simplificado — se reevaluará considerando todos los actos incluidos.</p>
+      <label>Clasificación de riesgo</label>
+      <select id="fRiesgo"><option value="bajo">Bajo</option><option value="medio">Medio</option><option value="alto">Alto</option></select>
+
+      <div class="error-box" id="nuevoError"></div>
+      <div class="btn-row">
+        <button class="btn" id="btnCrearBorrador">Crear borrador</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="viewDetalle" class="view">
+    <button class="back-link" data-back="misExpedientes">← Mis expedientes</button>
+    <div class="card" id="detalleContenido"></div>
+  </div>
+</div>
+
+<script src="access-gate.js" data-tool-slug="mesa-control"></script>
+<script>
+(function () {
+  'use strict';
+
+  var client, session, isRec = false, notarioIds = [];
+  var actosCache = [], notariosCache = [];
+  var currentExpedienteId = null;
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function money(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+  }
+  function fmtDate(s) {
+    if (!s) return '—';
+    return new Date(s).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  var ESTATUS_LABEL = { borrador: 'Borrador', enviado: 'En revisión', autorizado: 'Autorizado', rechazado: 'Rechazado' };
+  function badge(estatus) {
+    return '<span class="badge badge-' + estatus + '">' + ESTATUS_LABEL[estatus] + '</span>';
+  }
+
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
+    document.getElementById('view' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.view === name); });
+  }
+
+  document.getElementById('tabs').addEventListener('click', function (e) {
+    var btn = e.target.closest('.tab-btn');
+    if (!btn || btn.style.display === 'none') return;
+    showView(btn.dataset.view);
+    if (btn.dataset.view === 'misExpedientes') loadMisExpedientes();
+    if (btn.dataset.view === 'cola') loadCola();
+    if (btn.dataset.view === 'vulnerables') loadVulnerables();
+  });
+  document.querySelectorAll('[data-back]').forEach(function (b) {
+    b.addEventListener('click', function () { showView(b.dataset.back); loadMisExpedientes(); });
+  });
+  document.getElementById('btnLogout').addEventListener('click', async function () {
+    await client.auth.signOut();
+    window.location.href = 'panel.html';
+  });
+
+  // ---------- Catálogos ----------
+
+  async function loadCatalogos() {
+    var notRes = await client.from('mc_notarios').select('id, nombre, prefijo_folio').eq('activo', true).order('nombre');
+    notariosCache = notRes.data || [];
+    var selNotario = document.getElementById('fNotario');
+    selNotario.innerHTML = notariosCache.map(function (n) {
+      return '<option value="' + n.id + '">' + escapeHtml(n.nombre) + ' (' + escapeHtml(n.prefijo_folio) + ')</option>';
+    }).join('');
+
+    var actosRes = await client.from('mc_actos_juridicos')
+      .select('id, nombre, documentos_requeridos, campos_adicionales').eq('activo', true).order('nombre');
+    actosCache = actosRes.data || [];
+    var selActo = document.getElementById('fActo');
+    selActo.innerHTML = actosCache.map(function (a) {
+      return '<option value="' + a.id + '">' + escapeHtml(a.nombre) + '</option>';
+    }).join('');
+    updateActoDinamico();
+  }
+
+  // Formulario dinámico: cambia según el acto elegido — el acto es la fuente
+  // única de verdad para el checklist de documentos y los campos extra.
+  function updateActoDinamico() {
+    var acto = actosCache.find(function (a) { return a.id === document.getElementById('fActo').value; });
+    var docsBox = document.getElementById('documentosPreview');
+    var camposBox = document.getElementById('camposAdicionales');
+    if (!acto) { docsBox.textContent = ''; camposBox.innerHTML = ''; return; }
+
+    var docs = acto.documentos_requeridos || [];
+    docsBox.textContent = docs.length
+      ? 'Documentos que se van a requerir: ' + docs.map(function (d) { return d.replace(/_/g, ' '); }).join(', ') + '.'
+      : 'Este acto no tiene documentos configurados como requeridos.';
+
+    var campos = acto.campos_adicionales || [];
+    camposBox.innerHTML = campos.length === 0 ? '' :
+      '<h3 style="margin-top:18px;font-size:1.05rem;">Preguntas específicas de este acto</h3>' +
+      campos.map(function (c, i) {
+        var id = 'fExtra_' + i;
+        if (c.tipo === 'select') {
+          return '<label>' + escapeHtml(c.etiqueta) + '</label><select id="' + id + '" data-clave="' + escapeHtml(c.clave) + '">' +
+            (c.opciones || []).map(function (o) { return '<option value="' + escapeHtml(o) + '">' + escapeHtml(o) + '</option>'; }).join('') + '</select>';
+        }
+        return '<label>' + escapeHtml(c.etiqueta) + '</label><input id="' + id + '" data-clave="' + escapeHtml(c.clave) + '">';
+      }).join('');
+  }
+  document.getElementById('fActo').addEventListener('change', updateActoDinamico);
+
+  document.getElementById('fTipoPersona').addEventListener('change', function () {
+    var esMoral = this.value === 'moral';
+    var curp = document.getElementById('fCurp');
+    curp.disabled = esMoral;
+    if (esMoral) curp.value = '';
+  });
+  document.getElementById('fEsPep').addEventListener('change', function () {
+    document.getElementById('pepDetalle').style.display = this.value === 'si' ? 'block' : 'none';
+  });
+  document.getElementById('fBcRuta').addEventListener('change', function () {
+    document.querySelectorAll('.bc-ruta').forEach(function (d) { d.style.display = 'none'; });
+    document.getElementById('bcRuta' + document.getElementById('fBcRuta').value).style.display = 'block';
+  });
+  document.getElementById('fActoCombinado').addEventListener('change', function () {
+    document.getElementById('actoCombinadoHint').style.display = this.checked ? 'block' : 'none';
+  });
+
+  // ---------- Mis expedientes ----------
+
+  async function loadMisExpedientes() {
+    var el = document.getElementById('tablaMisExpedientes');
+    el.innerHTML = '<p class="empty-state">Cargando…</p>';
+    var res = await client.from('mc_expedientes')
+      .select('id, folio, estatus, monto_pesos, created_at, cliente:mc_clientes(nombre_razon_social), acto:mc_actos_juridicos(nombre), notario:mc_notarios(nombre)')
+      .eq('abogado_id', session.user.id)
+      .order('created_at', { ascending: false });
+    var rows = res.data || [];
+    if (rows.length === 0) { el.innerHTML = '<p class="empty-state">Todavía no has creado ningún expediente.</p>'; return; }
+    el.innerHTML = renderTable(rows, true);
+    bindRowClicks(el);
+  }
+
+  function renderTable(rows, ownRows) {
+    return '<table><tr><th>Folio</th><th>Cliente</th><th>Acto</th><th>Notario</th><th>Monto</th><th>Estatus</th><th>Fecha</th></tr>' +
+      rows.map(function (r) {
+        return '<tr class="clickable" data-id="' + r.id + '">' +
+          '<td>' + (r.folio ? escapeHtml(r.folio) : '<span class="hint">sin folio</span>') + '</td>' +
+          '<td>' + escapeHtml(r.cliente ? r.cliente.nombre_razon_social : '—') + '</td>' +
+          '<td>' + escapeHtml(r.acto ? r.acto.nombre : '—') + '</td>' +
+          '<td>' + escapeHtml(r.notario ? r.notario.nombre : '—') + '</td>' +
+          '<td>' + money(r.monto_pesos) + '</td>' +
+          '<td>' + badge(r.estatus) + '</td>' +
+          '<td>' + fmtDate(r.created_at) + '</td></tr>';
+      }).join('') + '</table>';
+  }
+
+  function bindRowClicks(container) {
+    container.querySelectorAll('tr.clickable').forEach(function (tr) {
+      tr.addEventListener('click', function () { openDetalle(tr.dataset.id); });
+    });
+  }
+
+  // ---------- Cola de revisión (REC) ----------
+
+  async function loadCola() {
+    var el = document.getElementById('tablaCola');
+    el.innerHTML = '<p class="empty-state">Cargando…</p>';
+    var res = await client.from('mc_expedientes')
+      .select('id, folio, estatus, monto_pesos, created_at, cliente:mc_clientes(nombre_razon_social), acto:mc_actos_juridicos(nombre), notario:mc_notarios(nombre)')
+      .eq('estatus', 'enviado')
+      .order('created_at', { ascending: true });
+    var rows = res.data || [];
+    if (rows.length === 0) { el.innerHTML = '<p class="empty-state">No hay expedientes pendientes de revisión.</p>'; return; }
+    el.innerHTML = renderTable(rows, false);
+    bindRowClicks(el);
+  }
+
+  // ---------- Actividades vulnerables ----------
+
+  async function loadVulnerables() {
+    var el = document.getElementById('tablaVulnerables');
+    el.innerHTML = '<p class="empty-state">Cargando…</p>';
+    var res = await client.from('mc_actividades_vulnerables_v')
+      .select('*').order('created_at', { ascending: false });
+    var rows = res.data || [];
+    if (rows.length === 0) { el.innerHTML = '<p class="empty-state">Ningún expediente marcado como actividad vulnerable todavía.</p>'; return; }
+    el.innerHTML = '<table><tr><th>Folio</th><th>Cliente</th><th>Acto</th><th>Notario</th><th>Monto</th>' +
+      '<th>Aviso</th><th>Restricción efectivo</th><th>Estatus</th></tr>' +
+      rows.map(function (r) {
+        return '<tr class="clickable" data-id="' + r.expediente_id + '">' +
+          '<td>' + (r.folio ? escapeHtml(r.folio) : '<span class="hint">sin folio</span>') + '</td>' +
+          '<td>' + escapeHtml(r.cliente_nombre) + '</td>' +
+          '<td>' + escapeHtml(r.acto_nombre) + '</td>' +
+          '<td>' + escapeHtml(r.notario_nombre) + '</td>' +
+          '<td>' + money(r.monto_pesos) + '</td>' +
+          '<td>' + (r.aplica_aviso ? '<span class="badge badge-rechazado">Sí</span>' : 'No') + '</td>' +
+          '<td>' + (r.aplica_restriccion_efectivo ? '<span class="badge badge-rechazado">Sí</span>' : 'No') + '</td>' +
+          '<td>' + badge(r.estatus) + '</td></tr>';
+      }).join('') + '</table>';
+    bindRowClicks(el);
+  }
+
+  // ---------- Nuevo expediente ----------
+
+  document.getElementById('btnNuevoExpediente').addEventListener('click', function () {
+    document.getElementById('nuevoError').classList.remove('show');
+    ['fDbaId', 'fRfc', 'fCurp', 'fNombreCliente', 'fDomicilio', 'fActividadEconomica', 'fOrigenRecursos',
+      'fDestinoRecursos', 'fMonto', 'fPepCargo', 'fPepDependencia', 'fPepPeriodo',
+      'fBcB_relacion', 'fBcB_datos', 'fBcC1_nombre', 'fBcC1_medio', 'fBcC1_id', 'fBcC1_nacionalidad',
+      'fBcC2_nombre', 'fBcC2_medio', 'fBcD_partes', 'fBcD_beneficio', 'fBcD_nombre', 'fBcD_datos', 'fBcObservaciones']
+      .forEach(function (id) { document.getElementById(id).value = ''; });
+    ['fBcA_cuentaPropia', 'fBcB_declaracion', 'fBcB_identificacion', 'fBcB_documento',
+      'fBcC_acta', 'fBcC_libro', 'fBcC_organo'].forEach(function (id) { document.getElementById(id).checked = false; });
+    document.getElementById('fTipoPersona').value = 'fisica';
+    document.getElementById('fCurp').disabled = false;
+    document.getElementById('fEsPep').value = 'no';
+    document.getElementById('pepDetalle').style.display = 'none';
+    document.getElementById('fActoCombinado').checked = false;
+    document.getElementById('actoCombinadoHint').style.display = 'none';
+    document.getElementById('fRiesgo').value = 'bajo';
+    document.getElementById('fBcRuta').value = 'A';
+    document.getElementById('fBcRuta').dispatchEvent(new Event('change'));
+    document.getElementById('fBcConclusion').value = 'si_existe';
+    document.getElementById('clienteHint').textContent = '';
+    clienteEncontradoId = null;
+    updateActoDinamico();
+    showView('nuevo');
+  });
+
+  var clienteEncontradoId = null;
+  async function buscarCliente() {
+    var rfc = document.getElementById('fRfc').value.trim();
+    var curp = document.getElementById('fCurp').value.trim();
+    clienteEncontradoId = null;
+    document.getElementById('clienteHint').textContent = '';
+    if (!rfc && !curp) return;
+    var query = client.from('mc_clientes').select('id, tipo_persona, nombre_razon_social, domicilio, actividad_economica');
+    query = rfc ? query.eq('rfc', rfc) : query.eq('curp', curp);
+    var res = await query.maybeSingle();
+    if (res.data) {
+      clienteEncontradoId = res.data.id;
+      document.getElementById('fTipoPersona').value = res.data.tipo_persona;
+      document.getElementById('fTipoPersona').dispatchEvent(new Event('change'));
+      document.getElementById('fNombreCliente').value = res.data.nombre_razon_social || '';
+      document.getElementById('fDomicilio').value = res.data.domicilio || '';
+      document.getElementById('fActividadEconomica').value = res.data.actividad_economica || '';
+      document.getElementById('clienteHint').textContent = 'Cliente existente encontrado — se reutilizará su expediente.';
+    } else {
+      document.getElementById('clienteHint').textContent = 'No se encontró: se creará un cliente nuevo con estos datos.';
+    }
+  }
+  document.getElementById('fRfc').addEventListener('blur', buscarCliente);
+  document.getElementById('fCurp').addEventListener('blur', buscarCliente);
+
+  document.getElementById('btnCrearBorrador').addEventListener('click', async function () {
+    var errorBox = document.getElementById('nuevoError');
+    errorBox.classList.remove('show');
+    var rfc = document.getElementById('fRfc').value.trim();
+    var curp = document.getElementById('fCurp').value.trim();
+    var nombre = document.getElementById('fNombreCliente').value.trim();
+    var monto = document.getElementById('fMonto').value;
+
+    if (!rfc && !curp) { errorBox.textContent = 'Captura RFC o CURP del cliente.'; errorBox.classList.add('show'); return; }
+    if (!nombre) { errorBox.textContent = 'Falta el nombre o razón social del cliente.'; errorBox.classList.add('show'); return; }
+    if (!monto) { errorBox.textContent = 'Falta el monto de la operación.'; errorBox.classList.add('show'); return; }
+    var bcConclusion = document.getElementById('fBcConclusion').value;
+    var bcObservaciones = document.getElementById('fBcObservaciones').value.trim();
+    if (bcConclusion !== 'si_existe' && !bcObservaciones) {
+      errorBox.textContent = 'La conclusión de Beneficiario Controlador elegida requiere observaciones/justificación.';
+      errorBox.classList.add('show'); return;
+    }
+
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Creando…';
+
+    var clienteId = clienteEncontradoId;
+    if (!clienteId) {
+      var insCliente = await client.from('mc_clientes').insert({
+        tipo_persona: document.getElementById('fTipoPersona').value,
+        rfc: rfc || null, curp: curp || null,
+        nombre_razon_social: nombre,
+        domicilio: document.getElementById('fDomicilio').value.trim() || null,
+        actividad_economica: document.getElementById('fActividadEconomica').value.trim() || null,
+        created_by: session.user.id
+      }).select('id').single();
+      if (insCliente.error) {
+        errorBox.textContent = 'No se pudo crear el cliente: ' + insCliente.error.message;
+        errorBox.classList.add('show'); btn.disabled = false; btn.textContent = 'Crear borrador'; return;
+      }
+      clienteId = insCliente.data.id;
+    }
+
+    var camposExtra = {};
+    document.querySelectorAll('#camposAdicionales [data-clave]').forEach(function (el) {
+      camposExtra[el.dataset.clave] = el.value;
+    });
+
+    var bcRuta = document.getElementById('fBcRuta').value;
+    var beneficiarioControlador = { ruta: bcRuta, conclusion: bcConclusion, observaciones: bcObservaciones || null };
+    if (bcRuta === 'A') {
+      beneficiarioControlador.actua_cuenta_propia = document.getElementById('fBcA_cuentaPropia').checked;
+    } else if (bcRuta === 'B') {
+      beneficiarioControlador.relacion_compareciente = document.getElementById('fBcB_relacion').value.trim() || null;
+      beneficiarioControlador.datos_tercero = document.getElementById('fBcB_datos').value.trim() || null;
+      beneficiarioControlador.evidencia = {
+        declaracion_firmada: document.getElementById('fBcB_declaracion').checked,
+        identificacion_tercero: document.getElementById('fBcB_identificacion').checked,
+        documento_relacion: document.getElementById('fBcB_documento').checked
+      };
+    } else if (bcRuta === 'C') {
+      beneficiarioControlador.info_base = {
+        acta_constitutiva: document.getElementById('fBcC_acta').checked,
+        libro_socios: document.getElementById('fBcC_libro').checked,
+        organo_administracion: document.getElementById('fBcC_organo').checked
+      };
+      beneficiarioControlador.determinacion = document.getElementById('fBcC_determinacion').value;
+      beneficiarioControlador.bcs = [
+        { nombre: document.getElementById('fBcC1_nombre').value.trim() || null,
+          medio_control: document.getElementById('fBcC1_medio').value.trim() || null,
+          identificador: document.getElementById('fBcC1_id').value.trim() || null,
+          nacionalidad: document.getElementById('fBcC1_nacionalidad').value.trim() || null },
+        { nombre: document.getElementById('fBcC2_nombre').value.trim() || null,
+          medio_control: document.getElementById('fBcC2_medio').value.trim() || null }
+      ].filter(function (b) { return b.nombre; });
+    } else if (bcRuta === 'D') {
+      beneficiarioControlador.partes = document.getElementById('fBcD_partes').value.trim() || null;
+      beneficiarioControlador.descripcion_beneficio = document.getElementById('fBcD_beneficio').value.trim() || null;
+      beneficiarioControlador.bc_nombre = document.getElementById('fBcD_nombre').value.trim() || null;
+      beneficiarioControlador.bc_datos = document.getElementById('fBcD_datos').value.trim() || null;
+    } else if (bcRuta === 'E') {
+      beneficiarioControlador.motivo = document.getElementById('fBcE_motivo').value;
+      beneficiarioControlador.medida = document.getElementById('fBcE_medida').value;
+    }
+
+    var cuestionario = {
+      dba_expediente_id: document.getElementById('fDbaId').value.trim() || null,
+      origen_recursos: document.getElementById('fOrigenRecursos').value.trim() || null,
+      destino_recursos: document.getElementById('fDestinoRecursos').value.trim() || null,
+      beneficiario_controlador: beneficiarioControlador,
+      pep: document.getElementById('fEsPep').value === 'si' ? {
+        es_pep: true,
+        cargo: document.getElementById('fPepCargo').value.trim() || null,
+        dependencia: document.getElementById('fPepDependencia').value.trim() || null,
+        nivel_gobierno: document.getElementById('fPepNivel').value,
+        periodo: document.getElementById('fPepPeriodo').value.trim() || null,
+        relacion: document.getElementById('fPepRelacion').value
+      } : { es_pep: false },
+      instrumento_incluye_otro_acto: document.getElementById('fActoCombinado').checked,
+      clasificacion_riesgo: document.getElementById('fRiesgo').value,
+      campos_acto: camposExtra
+    };
+
+    var insExp = await client.from('mc_expedientes').insert({
+      notario_id: document.getElementById('fNotario').value,
+      area: document.getElementById('fArea').value,
+      cliente_id: clienteId,
+      acto_id: document.getElementById('fActo').value,
+      abogado_id: session.user.id,
+      dba_expediente_id: cuestionario.dba_expediente_id,
+      monto_pesos: monto,
+      forma_pago: document.getElementById('fFormaPago').value,
+      cuestionario: cuestionario
+    }).select('id').single();
+
+    btn.disabled = false; btn.textContent = 'Crear borrador';
+
+    if (insExp.error) {
+      errorBox.textContent = 'No se pudo crear el expediente: ' + insExp.error.message;
+      errorBox.classList.add('show'); return;
+    }
+    openDetalle(insExp.data.id);
+  });
+
+  // ---------- Detalle de expediente ----------
+
+  async function openDetalle(id) {
+    currentExpedienteId = id;
+    showView('detalle');
+    var el = document.getElementById('detalleContenido');
+    el.innerHTML = '<p class="empty-state">Cargando…</p>';
+
+    var res = await client.from('mc_expedientes')
+      .select('*, cliente:mc_clientes(nombre_razon_social, rfc, curp), acto:mc_actos_juridicos(nombre, documentos_requeridos), notario:mc_notarios(nombre, prefijo_folio)')
+      .eq('id', id).single();
+    if (res.error || !res.data) { el.innerHTML = '<p class="empty-state">No se pudo cargar el expediente.</p>'; return; }
+    var exp = res.data;
+
+    var docsRes = await client.from('mc_documentos').select('tipo_documento, nombre_archivo').eq('expediente_id', id);
+    var docs = docsRes.data || [];
+    var docsRequeridos = exp.acto.documentos_requeridos || [];
+
+    var esDueno = exp.abogado_id === session.user.id;
+    var puedeEditar = esDueno && (exp.estatus === 'borrador' || exp.estatus === 'rechazado');
+
+    var html = '<h2>' + escapeHtml(exp.acto.nombre) + ' ' + badge(exp.estatus) + '</h2>';
+    html += '<dl class="kv">';
+    html += '<dt>Folio</dt><dd>' + (exp.folio ? escapeHtml(exp.folio) : '—') + '</dd>';
+    html += '<dt>Expediente DBA</dt><dd>' + escapeHtml(exp.dba_expediente_id || '—') + '</dd>';
+    html += '<dt>Cliente</dt><dd>' + escapeHtml(exp.cliente.nombre_razon_social) + ' (' + escapeHtml(exp.cliente.rfc || exp.cliente.curp || '') + ')</dd>';
+    html += '<dt>Notario</dt><dd>' + escapeHtml(exp.notario.nombre) + '</dd>';
+    html += '<dt>Área</dt><dd>' + escapeHtml(exp.area) + '</dd>';
+    html += '<dt>Monto</dt><dd>' + money(exp.monto_pesos) + ' — ' + escapeHtml(exp.forma_pago || '') + '</dd>';
+    html += '</dl>';
+
+    var cu = exp.cuestionario || {};
+    html += '<h3 style="margin-top:20px;font-size:1rem;">Cuestionario</h3><dl class="kv">';
+    html += '<dt>Origen de recursos</dt><dd>' + escapeHtml(cu.origen_recursos || '—') + '</dd>';
+    html += '<dt>Destino de recursos</dt><dd>' + escapeHtml(cu.destino_recursos || '—') + '</dd>';
+    if (cu.beneficiario_controlador) {
+      var bc = cu.beneficiario_controlador;
+      var bcConclusionLabel = { si_existe: 'BC sí existe', no_aplica: 'No aplica', no_determinado: 'No fue posible determinar' }[bc.conclusion] || bc.conclusion;
+      var bcResumen = 'Ruta ' + escapeHtml(bc.ruta) + ' — ' + escapeHtml(bcConclusionLabel);
+      if (bc.ruta === 'C' && bc.bcs && bc.bcs.length) {
+        bcResumen += ': ' + bc.bcs.map(function (b) { return escapeHtml(b.nombre) + (b.medio_control ? ' (' + escapeHtml(b.medio_control) + ')' : ''); }).join(', ');
+      }
+      if (bc.ruta === 'D' && bc.bc_nombre) bcResumen += ': ' + escapeHtml(bc.bc_nombre);
+      if (bc.observaciones) bcResumen += ' — ' + escapeHtml(bc.observaciones);
+      html += '<dt>Beneficiario controlador</dt><dd>' + bcResumen + '</dd>';
+    }
+    if (cu.pep && cu.pep.es_pep) {
+      html += '<dt>PEP</dt><dd>Sí — ' + escapeHtml(cu.pep.cargo || '') + ', ' + escapeHtml(cu.pep.dependencia || '') +
+        ' (' + escapeHtml(cu.pep.nivel_gobierno || '') + ', ' + escapeHtml(cu.pep.periodo || '') + ') — ' + escapeHtml(cu.pep.relacion || '') + '</dd>';
+    } else {
+      html += '<dt>PEP</dt><dd>No</dd>';
+    }
+    html += '<dt>Instrumento combinado</dt><dd>' + (cu.instrumento_incluye_otro_acto ? 'Sí — incluye otro acto además del principal' : 'No') + '</dd>';
+    html += '<dt>Clasificación de riesgo</dt><dd>' + escapeHtml(cu.clasificacion_riesgo || '—') + '</dd>';
+    html += '</dl>';
+
+    if (exp.estatus === 'rechazado' && exp.motivo_rechazo) {
+      html += '<div class="notice-box notice-vulnerable"><strong>Motivo de rechazo:</strong> ' + escapeHtml(exp.motivo_rechazo) + '</div>';
+    }
+    if (exp.estatus === 'enviado' || exp.estatus === 'autorizado') {
+      html += '<h3 style="margin-top:20px;font-size:1rem;">Clasificación PLD</h3>';
+      html += '<dl class="kv">';
+      html += '<dt>Actividad vulnerable</dt><dd>' + (exp.es_actividad_vulnerable ? 'Sí' : 'No') + '</dd>';
+      html += '<dt>Genera Aviso</dt><dd>' + (exp.aplica_aviso ? 'Sí' : 'No') + (exp.monto_acumulado_detectado > 0 ? ' (incluye acumulado previo: ' + money(exp.monto_acumulado_detectado) + ' UMA×UMA aprox.)' : '') + '</dd>';
+      html += '<dt>Restricción de efectivo</dt><dd>' + (exp.aplica_restriccion_efectivo ? 'Sí — pago prohibido en efectivo' : 'No') + '</dd>';
+      html += '<dt>Fundamento</dt><dd>' + escapeHtml(exp.fundamento_legal || '—') + '</dd>';
+      html += '</dl>';
+    }
+
+    html += '<h3 style="margin-top:20px;font-size:1rem;">Documentos</h3><div id="docList">';
+    if (docsRequeridos.length === 0) {
+      html += '<p class="hint">Este acto no tiene documentos configurados como requeridos.</p>';
+    }
+    docsRequeridos.forEach(function (tipo) {
+      var subido = docs.find(function (d) { return d.tipo_documento === tipo; });
+      html += '<div class="doc-row"><span>' + escapeHtml(tipo.replace(/_/g, ' ')) + '</span>' +
+        (subido
+          ? '<span class="doc-status ok">✓ ' + escapeHtml(subido.nombre_archivo) + '</span>'
+          : (puedeEditar
+              ? '<input type="file" data-tipo="' + escapeHtml(tipo) + '" class="docUpload" style="width:auto;">'
+              : '<span class="doc-status pending">pendiente</span>')) +
+        '</div>';
+    });
+    html += '</div>';
+
+    if (puedeEditar) {
+      html += '<div class="btn-row">';
+      html += '<button class="btn" id="btnEnviarRevision">Enviar a revisión</button>';
+      html += '</div><div class="error-box" id="detalleError"></div>';
+    }
+
+    if (isRec && exp.estatus === 'enviado') {
+      html += '<div class="btn-row">';
+      html += '<button class="btn btn-teal" id="btnAutorizar">Autorizar y asignar folio</button>';
+      html += '<button class="btn btn-brick" id="btnRechazar">Rechazar</button>';
+      html += '</div>';
+      html += '<div id="rechazoBox" style="display:none;margin-top:12px;">';
+      html += '<label>Motivo del rechazo</label><textarea id="motivoRechazo"></textarea>';
+      html += '<div class="btn-row"><button class="btn btn-brick" id="btnConfirmarRechazo">Confirmar rechazo</button></div>';
+      html += '</div><div class="error-box" id="recError"></div>';
+    }
+
+    el.innerHTML = html;
+
+    el.querySelectorAll('.docUpload').forEach(function (input) {
+      input.addEventListener('change', function () { subirDocumento(id, input.dataset.tipo, input.files[0]); });
+    });
+
+    var btnEnviar = document.getElementById('btnEnviarRevision');
+    if (btnEnviar) btnEnviar.addEventListener('click', function () { enviarARevision(id); });
+
+    var btnAutorizar = document.getElementById('btnAutorizar');
+    if (btnAutorizar) btnAutorizar.addEventListener('click', function () { autorizarExpediente(id); });
+
+    var btnRechazar = document.getElementById('btnRechazar');
+    if (btnRechazar) btnRechazar.addEventListener('click', function () {
+      document.getElementById('rechazoBox').style.display = 'block';
+    });
+    var btnConfirmarRechazo = document.getElementById('btnConfirmarRechazo');
+    if (btnConfirmarRechazo) btnConfirmarRechazo.addEventListener('click', function () { rechazarExpediente(id); });
+  }
+
+  async function subirDocumento(expedienteId, tipo, file) {
+    if (!file) return;
+    if (file.size > 26214400) { alert('El archivo supera el límite de 25 MB.'); return; }
+    var path = expedienteId + '/' + tipo + '/' + file.name;
+    var up = await client.storage.from('mc-documentos').upload(path, file, { upsert: true });
+    if (up.error) { alert('No se pudo subir el archivo: ' + up.error.message); return; }
+    var ins = await client.from('mc_documentos').insert({
+      expediente_id: expedienteId, tipo_documento: tipo, storage_path: path,
+      nombre_archivo: file.name, tamano_bytes: file.size, subido_por: session.user.id
+    });
+    if (ins.error) { alert('El archivo se subió pero no se pudo registrar: ' + ins.error.message); return; }
+    openDetalle(expedienteId);
+  }
+
+  async function enviarARevision(id) {
+    var errorBox = document.getElementById('detalleError');
+    errorBox.classList.remove('show');
+    var res = await client.rpc('mc_enviar_a_revision', { p_expediente_id: id });
+    if (res.error) { errorBox.textContent = res.error.message; errorBox.classList.add('show'); return; }
+    openDetalle(id);
+  }
+
+  async function autorizarExpediente(id) {
+    var errorBox = document.getElementById('recError');
+    errorBox.classList.remove('show');
+    var res = await client.rpc('mc_autorizar_expediente', { p_expediente_id: id });
+    if (res.error) { errorBox.textContent = res.error.message; errorBox.classList.add('show'); return; }
+    openDetalle(id);
+  }
+
+  async function rechazarExpediente(id) {
+    var motivo = document.getElementById('motivoRechazo').value.trim();
+    var errorBox = document.getElementById('recError');
+    errorBox.classList.remove('show');
+    if (!motivo) { errorBox.textContent = 'El motivo de rechazo es obligatorio.'; errorBox.classList.add('show'); return; }
+    var res = await client.rpc('mc_rechazar_expediente', { p_expediente_id: id, p_motivo: motivo });
+    if (res.error) { errorBox.textContent = res.error.message; errorBox.classList.add('show'); return; }
+    openDetalle(id);
+  }
+
+  // ---------- Init ----------
+
+  async function init() {
+    // access-gate.js ya confirmó sesión y acceso antes de revelar el body.
+    client = window.__accessGateClient;
+    var sessionRes = await client.auth.getSession();
+    session = sessionRes.data.session;
+
+    var recRes = await client.from('mc_usuarios_rol').select('rol, notario_id').eq('usuario_id', session.user.id);
+    var roles = recRes.data || [];
+    isRec = roles.some(function (r) { return r.rol === 'rec'; });
+    notarioIds = roles.filter(function (r) { return r.rol === 'notario'; }).map(function (r) { return r.notario_id; });
+
+    if (isRec) document.getElementById('tabCola').style.display = '';
+    if (isRec || notarioIds.length > 0) document.getElementById('tabVulnerables').style.display = '';
+
+    await loadCatalogos();
+    await loadMisExpedientes();
+  }
+
+  // access-gate.js corre su checkAccess() de forma async; esperamos a que
+  // exponga el cliente antes de inicializar.
+  (function waitForGate() {
+    if (window.__accessGateClient) { init(); }
+    else { setTimeout(waitForGate, 60); }
+  })();
+})();
+</script>
+</body>
+</html>
