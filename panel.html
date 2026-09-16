@@ -257,6 +257,7 @@
   var CATEGORIA_LABELS = { pld: 'PLD', administrativas: 'HERRAMIENTAS ADMINISTRATIVAS', calculadoras: 'CALCULADORAS' };
   var CATEGORIA_INTRO = {
     pld: 'Encuentra aquí boletines normativos, matrices y otras herramientas de cumplimiento.',
+    administrativas: 'Herramientas que simplifican procesos administrativos.',
     calculadoras: 'Herramientas de uso frecuente para cálculos notariales.'
   };
   // Subsecciones fijas dentro de PLD. No vive en la base de datos porque son
@@ -288,11 +289,6 @@
   function renderDirectCard(t) {
     return '<div class="cat-card"><p class="cat-card-eyebrow">' + escapeHtml(t.nombre.toUpperCase()) + '</p>' +
       '<div class="cat-card-divider"></div>' + toolLinkHtml(t) + '</div>';
-  }
-
-  function renderListCategoryCard(key, items) {
-    return '<div class="cat-card"><p class="cat-card-eyebrow">' + escapeHtml(CATEGORIA_LABELS[key]) + '</p>' +
-      '<div class="cat-card-divider"></div>' + items.map(toolLinkHtml).join('') + '</div>';
   }
 
   function renderIntroCategoryCard(key) {
@@ -338,12 +334,12 @@
     lede.textContent = 'Herramientas disponibles para tu cuenta, agrupadas por área de trabajo.';
 
     var directas = visibleTools.filter(function (t) { return !t.categoria; });
-    var administrativas = visibleTools.filter(function (t) { return t.categoria === 'administrativas'; });
+    var tieneAdministrativas = visibleTools.some(function (t) { return t.categoria === 'administrativas'; });
     var tienePld = visibleTools.some(function (t) { return t.categoria === 'pld'; });
     var tieneCalculadoras = visibleTools.some(function (t) { return t.categoria === 'calculadoras'; });
 
     var cards = directas.map(renderDirectCard);
-    if (administrativas.length) cards.push(renderListCategoryCard('administrativas', administrativas));
+    if (tieneAdministrativas) cards.push(renderIntroCategoryCard('administrativas'));
     if (tienePld) cards.push(renderIntroCategoryCard('pld'));
     if (tieneCalculadoras) cards.push(renderIntroCategoryCard('calculadoras'));
 
