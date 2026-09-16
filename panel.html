@@ -144,6 +144,14 @@
   .cat-card-whole-link { transition: box-shadow 0.15s; }
   .cat-card-whole-link:hover { box-shadow: 0 0 0 1px #D3A55C inset; }
 
+  /* Nivel 2 de PLD: se agrupa en subsecciones (Boletines / Disposiciones
+     Generales). grid-column ocupa todo el ancho para que cada subsección
+     forme su propia fila dentro del grid exterior. */
+  .pld-grupo { grid-column: 1 / -1; }
+  .pld-grupo + .pld-grupo { margin-top: 8px; }
+  .pld-grupo-title { font-size: 1.15rem; font-weight: 500; margin: 0 0 16px; }
+  .pld-grupo .tool-grid { margin: 0; }
+
   /* Tarjetas del Nivel 2 (listado dentro de una categoría) — claras, sin rediseñar todavía. */
   .tool-card {
     display: block; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px;
@@ -250,6 +258,14 @@
     pld: 'Encuentra aquí boletines normativos, matrices y otras herramientas de cumplimiento.',
     calculadoras: 'Herramientas de uso frecuente para cálculos notariales.'
   };
+  // Subsecciones fijas dentro de PLD. No vive en la base de datos porque son
+  // solo 2 agrupaciones de contenido, no un eje de acceso ni de categoría.
+  var PLD_SUBSECCIONES = {
+    'reforma-pld-agosto-2026-nutshell': 'boletines',
+    'matriz-actividades-vulnerables': 'disposiciones-generales'
+  };
+  var PLD_SUBSECCION_LABELS = { boletines: 'Boletines', 'disposiciones-generales': 'Disposiciones Generales', otros: 'Otros' };
+  var PLD_SUBSECCION_ORDEN = ['boletines', 'disposiciones-generales', 'otros'];
   var visibleTools = [];
 
   function renderToolCard(t) {
@@ -282,6 +298,18 @@
       '<p class="cat-card-intro">' + escapeHtml(CATEGORIA_INTRO[key]) + '</p></a>';
   }
 
+  function renderPldGrupos(items) {
+    var grupos = { boletines: [], 'disposiciones-generales': [], otros: [] };
+    items.forEach(function (t) {
+      var key = PLD_SUBSECCIONES[t.slug] || 'otros';
+      grupos[key].push(t);
+    });
+    return PLD_SUBSECCION_ORDEN.filter(function (key) { return grupos[key].length; }).map(function (key) {
+      return '<div class="pld-grupo"><h2 class="pld-grupo-title">' + escapeHtml(PLD_SUBSECCION_LABELS[key]) + '</h2>' +
+        '<div class="tool-grid">' + grupos[key].map(renderToolCard).join('') + '</div></div>';
+    }).join('');
+  }
+
   function renderNivel() {
     var grid = document.getElementById('toolGrid');
     var backLink = document.getElementById('nivelBackLink');
@@ -292,11 +320,13 @@
     if (hash && CATEGORIA_LABELS[hash]) {
       backLink.style.display = 'inline-block';
       heading.textContent = CATEGORIA_LABELS[hash];
-      lede.textContent = 'Herramientas de esta categoría.';
+      lede.textContent = CATEGORIA_INTRO[hash] || 'Herramientas de esta categoría.';
       var items = visibleTools.filter(function (t) { return t.categoria === hash; });
-      grid.innerHTML = items.length
-        ? items.map(renderToolCard).join('')
-        : '<div class="empty-state">No hay herramientas disponibles en esta categoría para tu cuenta.</div>';
+      if (!items.length) {
+        grid.innerHTML = '<div class="empty-state">No hay herramientas disponibles en esta categoría para tu cuenta.</div>';
+        return;
+      }
+      grid.innerHTML = hash === 'pld' ? renderPldGrupos(items) : items.map(renderToolCard).join('');
       return;
     }
 
