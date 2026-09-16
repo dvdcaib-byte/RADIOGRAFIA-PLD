@@ -106,12 +106,12 @@
   /* --- Dashboard --- */
   #dashboardView { display: none; }
   .dash-header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
-  .dash-header h1 { font-size: 2rem; }
+  .dash-header h1 { font-size: 2.2rem; font-weight: 600; }
   .logout-link {
-    font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--ink-soft);
-    text-decoration: none; border: 1px solid var(--line); border-radius: 4px; padding: 7px 14px; cursor: pointer; background: none;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 0.85rem; color: var(--ink-soft);
+    text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0;
   }
-  .logout-link:hover { border-color: var(--brick); color: var(--brick); }
+  .logout-link:hover { color: var(--brick); }
   .lede { font-size: 1rem; color: var(--ink-soft); max-width: 640px; margin: 0 0 40px; }
 
   .nivel-back {
@@ -119,7 +119,32 @@
     text-decoration: none; margin-bottom: 20px;
   }
   .nivel-back:hover { color: var(--gold); }
-  .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+
+  /* Tarjetas de categoría del dashboard (Nivel 1) — siempre oscuras, sin
+     importar claro/oscuro del sitio, mismo tratamiento que el panel de marca
+     del login. */
+  .cat-card {
+    display: block; background: #16202B; border-radius: 6px; padding: 26px;
+    text-decoration: none; color: #EEF1EE;
+  }
+  .cat-card-eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #D3A55C; margin: 0 0 16px;
+  }
+  .cat-card-divider { border-top: 1px solid #2A3540; margin-bottom: 16px; }
+  .cat-card-link { display: block; text-decoration: none; color: inherit; }
+  .cat-card-link + .cat-card-link { margin-top: 16px; padding-top: 16px; border-top: 1px solid #2A3540; }
+  .cat-card-link h3 {
+    font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 1.05rem; margin: 0 0 4px; color: #EEF1EE;
+  }
+  .cat-card-link p { font-size: 0.85rem; color: #9AA3A0; margin: 0; line-height: 1.5; }
+  .cat-card-link:hover h3 { color: #D3A55C; }
+  .cat-card-intro { font-size: 0.9rem; color: #B7BDB6; line-height: 1.6; margin: 0; }
+  .cat-card-whole-link { transition: box-shadow 0.15s; }
+  .cat-card-whole-link:hover { box-shadow: 0 0 0 1px #D3A55C inset; }
+
+  /* Tarjetas del Nivel 2 (listado dentro de una categoría) — claras, sin rediseñar todavía. */
   .tool-card {
     display: block; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px;
     padding: 22px; box-shadow: var(--shadow); text-decoration: none; color: var(--ink);
@@ -181,12 +206,12 @@
     <a href="#" class="nivel-back" id="nivelBackLink" style="display:none;">← Volver a Tus herramientas</a>
     <div class="dash-header">
       <div>
-        <p class="eyebrow">Portal de miniapps</p>
+        <p class="eyebrow" id="dashboardEyebrow">VEGA IBARRA ASOCIADOS · SUITE ACTUM</p>
         <h1 id="dashboardHeading">Tus herramientas</h1>
       </div>
       <button class="logout-link" id="btnLogout">Cerrar sesión</button>
     </div>
-    <p class="lede" id="dashboardLede">Aquí solo aparecen las miniapps disponibles para tu cuenta.</p>
+    <p class="lede" id="dashboardLede">Herramientas disponibles para tu cuenta, agrupadas por área de trabajo.</p>
     <div class="tool-grid" id="toolGrid"></div>
   </div>
 </div>
@@ -220,7 +245,11 @@
     document.getElementById('loginView').style.display = 'grid';
   }
 
-  var CATEGORIA_LABELS = { pld: 'PLD', administrativas: 'Herramientas Administrativas', calculadoras: 'Calculadoras' };
+  var CATEGORIA_LABELS = { pld: 'PLD', administrativas: 'HERRAMIENTAS ADMINISTRATIVAS', calculadoras: 'CALCULADORAS' };
+  var CATEGORIA_INTRO = {
+    pld: 'Encuentra aquí boletines normativos, matrices y otras herramientas de cumplimiento.',
+    calculadoras: 'Herramientas de uso frecuente para cálculos notariales.'
+  };
   var visibleTools = [];
 
   function renderToolCard(t) {
@@ -230,8 +259,27 @@
     return '<a class="tool-card" href="' + escapeHtml(t.slug) + '.html"><h2>' + escapeHtml(t.nombre) + '</h2></a>';
   }
 
-  function renderCategoryCard(key) {
-    return '<a class="tool-card" href="#' + key + '"><h2>' + escapeHtml(CATEGORIA_LABELS[key]) + '</h2></a>';
+  function toolLinkHtml(t) {
+    return '<a class="cat-card-link" href="' + escapeHtml(t.slug) + '.html">' +
+      '<h3>' + escapeHtml(t.nombre) + '</h3>' +
+      (t.descripcion ? '<p>' + escapeHtml(t.descripcion) + '</p>' : '') +
+      '</a>';
+  }
+
+  function renderDirectCard(t) {
+    return '<div class="cat-card"><p class="cat-card-eyebrow">' + escapeHtml(t.nombre.toUpperCase()) + '</p>' +
+      '<div class="cat-card-divider"></div>' + toolLinkHtml(t) + '</div>';
+  }
+
+  function renderListCategoryCard(key, items) {
+    return '<div class="cat-card"><p class="cat-card-eyebrow">' + escapeHtml(CATEGORIA_LABELS[key]) + '</p>' +
+      '<div class="cat-card-divider"></div>' + items.map(toolLinkHtml).join('') + '</div>';
+  }
+
+  function renderIntroCategoryCard(key) {
+    return '<a class="cat-card cat-card-whole-link" href="#' + key + '">' +
+      '<p class="cat-card-eyebrow">' + escapeHtml(CATEGORIA_LABELS[key]) + '</p>' +
+      '<p class="cat-card-intro">' + escapeHtml(CATEGORIA_INTRO[key]) + '</p></a>';
   }
 
   function renderNivel() {
@@ -254,12 +302,18 @@
 
     backLink.style.display = 'none';
     heading.textContent = 'Tus herramientas';
-    lede.textContent = 'Aquí solo aparecen las miniapps disponibles para tu cuenta.';
+    lede.textContent = 'Herramientas disponibles para tu cuenta, agrupadas por área de trabajo.';
+
     var directas = visibleTools.filter(function (t) { return !t.categoria; });
-    var categorias = Object.keys(CATEGORIA_LABELS).filter(function (key) {
-      return visibleTools.some(function (t) { return t.categoria === key; });
-    });
-    var cards = directas.map(renderToolCard).concat(categorias.map(renderCategoryCard));
+    var administrativas = visibleTools.filter(function (t) { return t.categoria === 'administrativas'; });
+    var tienePld = visibleTools.some(function (t) { return t.categoria === 'pld'; });
+    var tieneCalculadoras = visibleTools.some(function (t) { return t.categoria === 'calculadoras'; });
+
+    var cards = directas.map(renderDirectCard);
+    if (administrativas.length) cards.push(renderListCategoryCard('administrativas', administrativas));
+    if (tienePld) cards.push(renderIntroCategoryCard('pld'));
+    if (tieneCalculadoras) cards.push(renderIntroCategoryCard('calculadoras'));
+
     grid.innerHTML = cards.length
       ? cards.join('')
       : '<div class="empty-state">Tu cuenta todavía no tiene herramientas asignadas. Contacta a quien administra tu cuenta.</div>';
@@ -280,7 +334,7 @@
     var session = sessionRes.data && sessionRes.data.session;
     if (!session) { showLogin(); return; }
 
-    var toolsRes = await client.from('miniapps').select('id, slug, nombre, es_libre, categoria, disponible').order('nombre');
+    var toolsRes = await client.from('miniapps').select('id, slug, nombre, es_libre, categoria, disponible, descripcion').order('nombre');
     if (toolsRes.error || !toolsRes.data) {
       grid.innerHTML = '<div class="empty-state">No se pudo cargar el catálogo de herramientas.</div>';
       return;
