@@ -114,17 +114,24 @@
   .logout-link:hover { border-color: var(--brick); color: var(--brick); }
   .lede { font-size: 1rem; color: var(--ink-soft); max-width: 640px; margin: 0 0 40px; }
 
+  .nivel-back {
+    display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--ink-soft);
+    text-decoration: none; margin-bottom: 20px;
+  }
+  .nivel-back:hover { color: var(--gold); }
   .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
   .tool-card {
     display: block; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px;
     padding: 22px; box-shadow: var(--shadow); text-decoration: none; color: var(--ink);
   }
   .tool-card:hover { border-color: var(--gold); }
-  .tool-card .badge-libre {
-    display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.04em;
-    color: var(--teal); background: var(--teal-soft); border-radius: 3px; padding: 2px 8px; margin-bottom: 10px;
-  }
   .tool-card h2 { font-size: 1.15rem; }
+  .tool-card-soon { cursor: default; opacity: 0.72; }
+  .tool-card-soon:hover { border-color: var(--line); }
+  .badge-soon {
+    display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.04em;
+    color: var(--ink-soft); background: var(--line); border-radius: 3px; padding: 2px 8px; margin-bottom: 10px;
+  }
   .empty-state { color: var(--ink-soft); font-size: 0.92rem; padding: 24px 0; }
 </style>
 </head>
@@ -171,14 +178,15 @@
 
 <div id="dashboardView">
   <div class="page">
+    <a href="#" class="nivel-back" id="nivelBackLink" style="display:none;">← Volver a Tus herramientas</a>
     <div class="dash-header">
       <div>
         <p class="eyebrow">Portal de miniapps</p>
-        <h1>Tus herramientas</h1>
+        <h1 id="dashboardHeading">Tus herramientas</h1>
       </div>
       <button class="logout-link" id="btnLogout">Cerrar sesión</button>
     </div>
-    <p class="lede">Aquí solo aparecen las miniapps disponibles para tu cuenta.</p>
+    <p class="lede" id="dashboardLede">Aquí solo aparecen las miniapps disponibles para tu cuenta.</p>
     <div class="tool-grid" id="toolGrid"></div>
   </div>
 </div>
@@ -212,6 +220,58 @@
     document.getElementById('loginView').style.display = 'grid';
   }
 
+  var CATEGORIA_LABELS = { pld: 'PLD', administrativas: 'Herramientas Administrativas', calculadoras: 'Calculadoras' };
+  var visibleTools = [];
+
+  function renderToolCard(t) {
+    if (t.disponible === false) {
+      return '<div class="tool-card tool-card-soon"><span class="badge-soon">Próximamente</span><br><h2>' + escapeHtml(t.nombre) + '</h2></div>';
+    }
+    return '<a class="tool-card" href="' + escapeHtml(t.slug) + '.html"><h2>' + escapeHtml(t.nombre) + '</h2></a>';
+  }
+
+  function renderCategoryCard(key) {
+    return '<a class="tool-card" href="#' + key + '"><h2>' + escapeHtml(CATEGORIA_LABELS[key]) + '</h2></a>';
+  }
+
+  function renderNivel() {
+    var grid = document.getElementById('toolGrid');
+    var backLink = document.getElementById('nivelBackLink');
+    var heading = document.getElementById('dashboardHeading');
+    var lede = document.getElementById('dashboardLede');
+    var hash = (window.location.hash || '').replace(/^#/, '');
+
+    if (hash && CATEGORIA_LABELS[hash]) {
+      backLink.style.display = 'inline-block';
+      heading.textContent = CATEGORIA_LABELS[hash];
+      lede.textContent = 'Herramientas de esta categoría.';
+      var items = visibleTools.filter(function (t) { return t.categoria === hash; });
+      grid.innerHTML = items.length
+        ? items.map(renderToolCard).join('')
+        : '<div class="empty-state">No hay herramientas disponibles en esta categoría para tu cuenta.</div>';
+      return;
+    }
+
+    backLink.style.display = 'none';
+    heading.textContent = 'Tus herramientas';
+    lede.textContent = 'Aquí solo aparecen las miniapps disponibles para tu cuenta.';
+    var directas = visibleTools.filter(function (t) { return !t.categoria; });
+    var categorias = Object.keys(CATEGORIA_LABELS).filter(function (key) {
+      return visibleTools.some(function (t) { return t.categoria === key; });
+    });
+    var cards = directas.map(renderToolCard).concat(categorias.map(renderCategoryCard));
+    grid.innerHTML = cards.length
+      ? cards.join('')
+      : '<div class="empty-state">Tu cuenta todavía no tiene herramientas asignadas. Contacta a quien administra tu cuenta.</div>';
+  }
+
+  document.getElementById('nivelBackLink').addEventListener('click', function (e) {
+    e.preventDefault();
+    window.location.hash = '';
+    renderNivel();
+  });
+  window.addEventListener('hashchange', renderNivel);
+
   async function loadTools() {
     var grid = document.getElementById('toolGrid');
     grid.innerHTML = '<div class="empty-state">Cargando…</div>';
@@ -220,7 +280,7 @@
     var session = sessionRes.data && sessionRes.data.session;
     if (!session) { showLogin(); return; }
 
-    var toolsRes = await client.from('miniapps').select('id, slug, nombre, es_libre').order('nombre');
+    var toolsRes = await client.from('miniapps').select('id, slug, nombre, es_libre, categoria, disponible').order('nombre');
     if (toolsRes.error || !toolsRes.data) {
       grid.innerHTML = '<div class="empty-state">No se pudo cargar el catálogo de herramientas.</div>';
       return;
@@ -230,18 +290,8 @@
     var accessRes = await client.from('miniapp_acceso').select('miniapp_id').eq('usuario_id', session.user.id);
     var accessSet = new Set((accessRes.data || []).map(function (r) { return r.miniapp_id; }));
 
-    var visible = tools.filter(function (t) { return t.es_libre || accessSet.has(t.id); });
-
-    if (visible.length === 0) {
-      grid.innerHTML = '<div class="empty-state">Tu cuenta todavía no tiene herramientas asignadas. Contacta a quien administra tu cuenta.</div>';
-      return;
-    }
-
-    grid.innerHTML = visible.map(function (t) {
-      return '<a class="tool-card" href="' + escapeHtml(t.slug) + '.html">' +
-        (t.es_libre ? '<span class="badge-libre">Libre</span><br>' : '') +
-        '<h2>' + escapeHtml(t.nombre) + '</h2></a>';
-    }).join('');
+    visibleTools = tools.filter(function (t) { return t.es_libre || accessSet.has(t.id); });
+    renderNivel();
   }
 
   document.getElementById('loginForm').addEventListener('submit', async function (e) {
