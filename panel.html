@@ -144,13 +144,22 @@
   .cat-card-whole-link { transition: box-shadow 0.15s; }
   .cat-card-whole-link:hover { box-shadow: 0 0 0 1px #D3A55C inset; }
 
-  /* Nivel 2 de PLD: se agrupa en subsecciones (Boletines / Disposiciones
-     Generales). grid-column ocupa todo el ancho para que cada subsección
-     forme su propia fila dentro del grid exterior. */
-  .pld-grupo { grid-column: 1 / -1; }
-  .pld-grupo + .pld-grupo { margin-top: 8px; }
-  .pld-grupo-title { font-size: 1.15rem; font-weight: 500; margin: 0 0 16px; }
-  .pld-grupo .tool-grid { margin: 0; }
+  /* Nivel 2 de PLD: grid unificado de tarjetas oscuras (mismo tratamiento
+     que Nivel 1), sin headers de sección — cada tarjeta lleva su propia
+     etiqueta de grupo (Boletines / Disposiciones Generales) adentro. */
+  .pld-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 720px) { .pld-grid { grid-template-columns: 1fr; } }
+  .pld-tarjeta {
+    display: block; background: #16202B; border-radius: 6px; padding: 22px 24px;
+    min-height: 130px; text-decoration: none; color: #EEF1EE;
+  }
+  .pld-tarjeta:hover h3 { color: #D3A55C; }
+  .pld-tarjeta-grupo {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #D3A55C; margin: 0 0 10px;
+  }
+  .pld-tarjeta h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 1.1rem; color: #EEF1EE; margin: 0; }
+  .pld-tarjeta p { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.82rem; color: #9AA3A0; margin: 6px 0 0; line-height: 1.5; }
 
   /* Tarjetas del Nivel 2 (listado dentro de una categoría) — claras, sin rediseñar todavía. */
   .tool-card {
@@ -297,16 +306,21 @@
       '<p class="cat-card-intro">' + escapeHtml(CATEGORIA_INTRO[key]) + '</p></a>';
   }
 
-  function renderPldGrupos(items) {
-    var grupos = { boletines: [], 'disposiciones-generales': [], otros: [] };
-    items.forEach(function (t) {
-      var key = PLD_SUBSECCIONES[t.slug] || 'otros';
-      grupos[key].push(t);
+  function renderPldTarjeta(t) {
+    var grupoKey = PLD_SUBSECCIONES[t.slug] || 'otros';
+    var descripcion = t.descripcion ? '<p>' + escapeHtml(t.descripcion) + '</p>' : '';
+    return '<a class="pld-tarjeta" href="' + escapeHtml(t.slug) + '.html">' +
+      '<p class="pld-tarjeta-grupo">' + escapeHtml(PLD_SUBSECCION_LABELS[grupoKey]) + '</p>' +
+      '<h3>' + escapeHtml(t.nombre) + '</h3>' + descripcion + '</a>';
+  }
+
+  function renderPldGrid(items) {
+    var ordenados = items.slice().sort(function (a, b) {
+      var ka = PLD_SUBSECCIONES[a.slug] || 'otros';
+      var kb = PLD_SUBSECCIONES[b.slug] || 'otros';
+      return PLD_SUBSECCION_ORDEN.indexOf(ka) - PLD_SUBSECCION_ORDEN.indexOf(kb);
     });
-    return PLD_SUBSECCION_ORDEN.filter(function (key) { return grupos[key].length; }).map(function (key) {
-      return '<div class="pld-grupo"><h2 class="pld-grupo-title">' + escapeHtml(PLD_SUBSECCION_LABELS[key]) + '</h2>' +
-        '<div class="tool-grid">' + grupos[key].map(renderToolCard).join('') + '</div></div>';
-    }).join('');
+    return '<div class="pld-grid">' + ordenados.map(renderPldTarjeta).join('') + '</div>';
   }
 
   function renderNivel() {
@@ -325,7 +339,7 @@
         grid.innerHTML = '<div class="empty-state">No hay herramientas disponibles en esta categoría para tu cuenta.</div>';
         return;
       }
-      grid.innerHTML = hash === 'pld' ? renderPldGrupos(items) : items.map(renderToolCard).join('');
+      grid.innerHTML = hash === 'pld' ? renderPldGrid(items) : items.map(renderToolCard).join('');
       return;
     }
 
