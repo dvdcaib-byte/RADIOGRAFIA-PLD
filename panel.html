@@ -49,7 +49,7 @@
     font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--gold); margin: 0 0 10px;
   }
-  .page { max-width: 860px; margin: 0 auto; padding: 56px 24px 80px; }
+  .page { max-width: 1040px; margin: 0 auto; padding: 56px 24px 80px; }
 
   /* --- Login (Suite Actum) --- */
   #loginView {
@@ -147,7 +147,7 @@
   /* Nivel 2 de PLD: grid unificado de tarjetas oscuras (mismo tratamiento
      que Nivel 1), sin headers de sección — cada tarjeta lleva su propia
      etiqueta de grupo (Boletines / Disposiciones Generales) adentro. */
-  .pld-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .pld-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
   @media (max-width: 720px) { .pld-grid { grid-template-columns: 1fr; } }
   .pld-tarjeta {
     display: block; background: #16202B; border-radius: 6px; padding: 22px 24px;
