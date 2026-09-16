@@ -161,6 +161,9 @@
   }
   .cat-tarjeta h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 1.1rem; color: #EEF1EE; margin: 0; }
   .cat-tarjeta p { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.82rem; color: #9AA3A0; margin: 6px 0 0; line-height: 1.5; }
+  .cat-tarjeta-soon { cursor: default; opacity: 0.65; }
+  .cat-tarjeta-soon:hover h3 { color: #EEF1EE; }
+  .cat-tarjeta-grupo-soon { color: #9AA3A0; }
 
   /* Tarjetas del Nivel 2 (listado dentro de una categoría) — claras, sin rediseñar todavía. */
   .tool-card {
@@ -268,7 +271,7 @@
   // H1 de Nivel 2: mismo texto que CATEGORIA_LABELS salvo que se necesite
   // mayúscula-inicial en vez de todo-mayúsculas (p.ej. "Herramientas
   // administrativas" — el eyebrow de Nivel 1 sigue en mayúsculas siempre).
-  var CATEGORIA_HEADING = { administrativas: 'Herramientas administrativas' };
+  var CATEGORIA_HEADING = { administrativas: 'Herramientas administrativas', calculadoras: 'Calculadoras' };
   var CATEGORIA_INTRO = {
     pld: 'Encuentra aquí boletines normativos, matrices y otras herramientas de cumplimiento.',
     administrativas: 'Herramientas que simplifican procesos administrativos.',
@@ -297,7 +300,7 @@
   };
   // Categorías cuyo Nivel 2 usa el grid unificado de tarjetas oscuras en
   // vez del listado claro genérico (.tool-card).
-  var CATEGORIAS_CON_GRID_OSCURO = ['pld', 'administrativas'];
+  var CATEGORIAS_CON_GRID_OSCURO = ['pld', 'administrativas', 'calculadoras'];
   var visibleTools = [];
 
   function renderToolCard(t) {
@@ -327,9 +330,14 @@
   }
 
   function renderCategoriaTarjeta(t, categoriaKey) {
+    var descripcion = t.descripcion ? '<p>' + escapeHtml(t.descripcion) + '</p>' : '';
+    if (t.disponible === false) {
+      return '<div class="cat-tarjeta cat-tarjeta-soon">' +
+        '<p class="cat-tarjeta-grupo cat-tarjeta-grupo-soon">Próximamente</p>' +
+        '<h3>' + escapeHtml(t.nombre) + '</h3>' + descripcion + '</div>';
+    }
     var subMap = SUBSECCIONES[categoriaKey] || {};
     var grupoKey = subMap[t.slug] || 'otros';
-    var descripcion = t.descripcion ? '<p>' + escapeHtml(t.descripcion) + '</p>' : '';
     return '<a class="cat-tarjeta" href="' + escapeHtml(t.slug) + '.html">' +
       '<p class="cat-tarjeta-grupo">' + escapeHtml(SUBSECCION_LABELS[grupoKey] || grupoKey) + '</p>' +
       '<h3>' + escapeHtml(t.nombre) + '</h3>' + descripcion + '</a>';
