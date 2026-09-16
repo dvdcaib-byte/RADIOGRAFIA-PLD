@@ -181,6 +181,98 @@
     max-width: 800px;
   }
   .footer-note a { color: var(--teal); }
+
+  .uma-tool {
+    margin-top: 28px;
+    padding: 20px 24px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .uma-tool-label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .uma-tool-amount {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .uma-tool-unit {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--ink-soft);
+  }
+  .uma-tool-converter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .uma-tool-converter label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+  }
+  .uma-tool-converter input {
+    width: 110px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.95rem;
+  }
+  .uma-tool-converter input:focus {
+    outline: 2px solid var(--gold);
+    outline-offset: 1px;
+  }
+  .uma-tool-eq { color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; }
+  .uma-tool-converter output {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--teal);
+  }
+
+  .uma-frecuentes { margin-top: 20px; }
+  .uma-frecuentes-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    margin: 0 0 10px;
+  }
+  .uma-frecuentes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+  }
+  .uma-chip {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--ink);
+  }
+  .uma-chip .uma-chip-mxn { display: block; color: var(--teal); font-weight: 600; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -190,7 +282,24 @@
   <p class="eyebrow">Herramienta de referencia — Prevención de Lavado de Dinero</p>
   <h1>Matriz de Actividades Vulnerables y Restricciones de Efectivo</h1>
   <div class="title-rule"></div>
-  <p class="lede">Las 16 fracciones del artículo 17 de la LFPIORPI (qué se considera Actividad Vulnerable y cuándo genera Aviso) y los 8 supuestos del artículo 32 (qué operaciones no se pueden pagar en efectivo). Todos los montos están expresados en veces el valor diario de la UMA — no en pesos, porque la UMA se actualiza cada año.</p>
+  <p class="lede">Las 16 fracciones del artículo 17 de la LFPIORPI (qué se considera Actividad Vulnerable y cuándo genera Aviso) y los 8 supuestos del artículo 32 (qué operaciones no se pueden pagar en efectivo). Todos los montos de las tablas están expresados en veces el valor diario de la UMA — no en pesos, porque la UMA se actualiza cada año. Usa el convertidor de abajo para ver el equivalente en pesos con el valor vigente.</p>
+
+  <div class="uma-tool">
+    <div>
+      <span class="uma-tool-label">Valor UMA vigente (2026)</span>
+      <span class="uma-tool-amount">$117.31 <span class="uma-tool-unit">MXN diarios</span></span>
+    </div>
+    <div class="uma-tool-converter">
+      <label for="umaInput">Cantidad de UMAs</label>
+      <input type="number" id="umaInput" min="0" step="1" value="325" inputmode="decimal">
+      <span class="uma-tool-eq">=</span>
+      <output id="umaResult" for="umaInput"></output>
+    </div>
+  </div>
+  <div class="uma-frecuentes">
+    <p class="uma-frecuentes-label">Valores UMA frecuentes en esta matriz</p>
+    <div class="uma-frecuentes-grid" id="umaFrecuentesGrid"></div>
+  </div>
 
   <h2>Actividades Vulnerables — identificación y Aviso (art. 17)</h2>
   <p class="section-note">"Umbral de identificación" es el monto a partir del cual la actividad se considera Actividad Vulnerable. "Umbral de Aviso" es el monto a partir del cual, además, debe presentarse Aviso ante la Secretaría. Cuando ambos coinciden, se indica una sola cifra.</p>
@@ -266,9 +375,37 @@
   <p class="section-note"><strong>Nota clave (art. 33):</strong> el fedatario debe identificar la forma de pago cuando la operación sea ≥8,025 UMA. Si es menor y ya se pagó antes de firmar el instrumento, basta una declaración bajo protesta de decir verdad de la persona Cliente o Usuaria.</p>
 
   <div class="footer-note">
-    Fuente primaria: Ley Federal para la Prevención e Identificación de Operaciones con Recursos de Procedencia Ilícita, texto vigente (última reforma DOF 16-07-2025), arts. 17, 32 y 33. Consulta el texto completo en <a href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPIORPI.pdf" target="_blank" rel="noopener noreferrer">diputados.gob.mx</a>. Esta matriz no incluye los montos en pesos porque dependen del valor diario de la UMA vigente en el año de la operación — verifícalo antes de aplicar cualquier umbral.
+    Fuente primaria: Ley Federal para la Prevención e Identificación de Operaciones con Recursos de Procedencia Ilícita, texto vigente (última reforma DOF 16-07-2025), arts. 17, 32 y 33. Consulta el texto completo en <a href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPIORPI.pdf" target="_blank" rel="noopener noreferrer">diputados.gob.mx</a>. Las tablas usan veces UMA porque ese es el valor legal vigente; el convertidor de arriba usa la UMA 2026 ($117.31 MXN) — si la operación fue en un año distinto, verifica el valor de la UMA de ese año antes de aplicar cualquier umbral.
   </div>
 
 </div>
+
+<script>
+(function () {
+  var UMA = 117.31;
+
+  function formatMXN(n) {
+    return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MXN';
+  }
+
+  var input = document.getElementById('umaInput');
+  var result = document.getElementById('umaResult');
+  function actualizarConvertidor() {
+    var n = parseFloat(input.value);
+    result.textContent = (isNaN(n) || n < 0) ? '—' : formatMXN(n * UMA);
+  }
+  input.addEventListener('input', actualizarConvertidor);
+  actualizarConvertidor();
+
+  var frecuentes = [4, 210, 325, 645, 805, 1285, 1605, 2410, 3210, 4000, 4815, 6420, 8000, 8025];
+  var grid = document.getElementById('umaFrecuentesGrid');
+  frecuentes.forEach(function (v) {
+    var chip = document.createElement('div');
+    chip.className = 'uma-chip';
+    chip.innerHTML = v.toLocaleString('es-MX') + ' UMA<span class="uma-chip-mxn">' + formatMXN(v * UMA) + '</span>';
+    grid.appendChild(chip);
+  });
+})();
+</script>
 </body>
 </html>
