@@ -144,22 +144,23 @@
   .cat-card-whole-link { transition: box-shadow 0.15s; }
   .cat-card-whole-link:hover { box-shadow: 0 0 0 1px #D3A55C inset; }
 
-  /* Nivel 2 de PLD: grid unificado de tarjetas oscuras (mismo tratamiento
-     que Nivel 1), sin headers de sección — cada tarjeta lleva su propia
-     etiqueta de grupo (Boletines / Disposiciones Generales) adentro. */
-  .pld-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  @media (max-width: 720px) { .pld-grid { grid-template-columns: 1fr; } }
-  .pld-tarjeta {
+  /* Nivel 2 de cualquier categoría con subgrupos (PLD, Herramientas
+     Administrativas, ...): grid unificado de tarjetas oscuras (mismo
+     tratamiento que Nivel 1), sin headers de sección — cada tarjeta lleva
+     su propia etiqueta de grupo adentro. */
+  .cat-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 720px) { .cat-grid { grid-template-columns: 1fr; } }
+  .cat-tarjeta {
     display: block; background: #16202B; border-radius: 6px; padding: 22px 24px;
     min-height: 130px; text-decoration: none; color: #EEF1EE;
   }
-  .pld-tarjeta:hover h3 { color: #D3A55C; }
-  .pld-tarjeta-grupo {
+  .cat-tarjeta:hover h3 { color: #D3A55C; }
+  .cat-tarjeta-grupo {
     font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; text-transform: uppercase;
     letter-spacing: 0.08em; color: #D3A55C; margin: 0 0 10px;
   }
-  .pld-tarjeta h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 1.1rem; color: #EEF1EE; margin: 0; }
-  .pld-tarjeta p { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.82rem; color: #9AA3A0; margin: 6px 0 0; line-height: 1.5; }
+  .cat-tarjeta h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 1.1rem; color: #EEF1EE; margin: 0; }
+  .cat-tarjeta p { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.82rem; color: #9AA3A0; margin: 6px 0 0; line-height: 1.5; }
 
   /* Tarjetas del Nivel 2 (listado dentro de una categoría) — claras, sin rediseñar todavía. */
   .tool-card {
@@ -264,20 +265,39 @@
   }
 
   var CATEGORIA_LABELS = { pld: 'PLD', administrativas: 'HERRAMIENTAS ADMINISTRATIVAS', calculadoras: 'CALCULADORAS' };
+  // H1 de Nivel 2: mismo texto que CATEGORIA_LABELS salvo que se necesite
+  // mayúscula-inicial en vez de todo-mayúsculas (p.ej. "Herramientas
+  // administrativas" — el eyebrow de Nivel 1 sigue en mayúsculas siempre).
+  var CATEGORIA_HEADING = { administrativas: 'Herramientas administrativas' };
   var CATEGORIA_INTRO = {
     pld: 'Encuentra aquí boletines normativos, matrices y otras herramientas de cumplimiento.',
     administrativas: 'Herramientas que simplifican procesos administrativos.',
     calculadoras: 'Herramientas de uso frecuente para cálculos notariales.'
   };
-  // Subsecciones fijas dentro de PLD. No vive en la base de datos porque son
-  // solo 2 agrupaciones de contenido, no un eje de acceso ni de categoría.
-  var PLD_SUBSECCIONES = {
-    'reforma-pld-agosto-2026-nutshell': 'boletines',
-    'matriz-actividades-vulnerables': 'disposiciones-generales',
-    'ley-lfpiorpi': 'disposiciones-generales'
+  // Subsecciones fijas dentro de cada categoría con tarjetas oscuras de
+  // Nivel 2. No viven en la base de datos porque son agrupaciones de
+  // contenido, no un eje de acceso ni de categoría.
+  var SUBSECCIONES = {
+    pld: {
+      'reforma-pld-agosto-2026-nutshell': 'boletines',
+      'matriz-actividades-vulnerables': 'disposiciones-generales',
+      'ley-lfpiorpi': 'disposiciones-generales'
+    },
+    administrativas: {
+      'conciliacion-escrituras-facturas': 'conciliacion'
+    }
   };
-  var PLD_SUBSECCION_LABELS = { boletines: 'Boletines', 'disposiciones-generales': 'Disposiciones Generales', otros: 'Otros' };
-  var PLD_SUBSECCION_ORDEN = ['boletines', 'disposiciones-generales', 'otros'];
+  var SUBSECCION_LABELS = {
+    boletines: 'Boletines', 'disposiciones-generales': 'Disposiciones Generales',
+    conciliacion: 'Conciliación', otros: 'Otros'
+  };
+  var SUBSECCION_ORDEN = {
+    pld: ['boletines', 'disposiciones-generales', 'otros'],
+    administrativas: ['conciliacion', 'otros']
+  };
+  // Categorías cuyo Nivel 2 usa el grid unificado de tarjetas oscuras en
+  // vez del listado claro genérico (.tool-card).
+  var CATEGORIAS_CON_GRID_OSCURO = ['pld', 'administrativas'];
   var visibleTools = [];
 
   function renderToolCard(t) {
@@ -306,21 +326,24 @@
       '<p class="cat-card-intro">' + escapeHtml(CATEGORIA_INTRO[key]) + '</p></a>';
   }
 
-  function renderPldTarjeta(t) {
-    var grupoKey = PLD_SUBSECCIONES[t.slug] || 'otros';
+  function renderCategoriaTarjeta(t, categoriaKey) {
+    var subMap = SUBSECCIONES[categoriaKey] || {};
+    var grupoKey = subMap[t.slug] || 'otros';
     var descripcion = t.descripcion ? '<p>' + escapeHtml(t.descripcion) + '</p>' : '';
-    return '<a class="pld-tarjeta" href="' + escapeHtml(t.slug) + '.html">' +
-      '<p class="pld-tarjeta-grupo">' + escapeHtml(PLD_SUBSECCION_LABELS[grupoKey]) + '</p>' +
+    return '<a class="cat-tarjeta" href="' + escapeHtml(t.slug) + '.html">' +
+      '<p class="cat-tarjeta-grupo">' + escapeHtml(SUBSECCION_LABELS[grupoKey] || grupoKey) + '</p>' +
       '<h3>' + escapeHtml(t.nombre) + '</h3>' + descripcion + '</a>';
   }
 
-  function renderPldGrid(items) {
+  function renderCategoriaGrid(items, categoriaKey) {
+    var subMap = SUBSECCIONES[categoriaKey] || {};
+    var orden = SUBSECCION_ORDEN[categoriaKey] || ['otros'];
     var ordenados = items.slice().sort(function (a, b) {
-      var ka = PLD_SUBSECCIONES[a.slug] || 'otros';
-      var kb = PLD_SUBSECCIONES[b.slug] || 'otros';
-      return PLD_SUBSECCION_ORDEN.indexOf(ka) - PLD_SUBSECCION_ORDEN.indexOf(kb);
+      var ka = subMap[a.slug] || 'otros';
+      var kb = subMap[b.slug] || 'otros';
+      return orden.indexOf(ka) - orden.indexOf(kb);
     });
-    return '<div class="pld-grid">' + ordenados.map(renderPldTarjeta).join('') + '</div>';
+    return '<div class="cat-grid">' + ordenados.map(function (t) { return renderCategoriaTarjeta(t, categoriaKey); }).join('') + '</div>';
   }
 
   function renderNivel() {
@@ -332,14 +355,14 @@
 
     if (hash && CATEGORIA_LABELS[hash]) {
       backLink.style.display = 'inline-block';
-      heading.textContent = CATEGORIA_LABELS[hash];
+      heading.textContent = CATEGORIA_HEADING[hash] || CATEGORIA_LABELS[hash];
       lede.textContent = CATEGORIA_INTRO[hash] || 'Herramientas de esta categoría.';
       var items = visibleTools.filter(function (t) { return t.categoria === hash; });
       if (!items.length) {
         grid.innerHTML = '<div class="empty-state">No hay herramientas disponibles en esta categoría para tu cuenta.</div>';
         return;
       }
-      grid.innerHTML = hash === 'pld' ? renderPldGrid(items) : items.map(renderToolCard).join('');
+      grid.innerHTML = CATEGORIAS_CON_GRID_OSCURO.indexOf(hash) >= 0 ? renderCategoriaGrid(items, hash) : items.map(renderToolCard).join('');
       return;
     }
 
