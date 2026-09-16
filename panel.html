@@ -158,7 +158,8 @@
     padding: 22px; box-shadow: var(--shadow); text-decoration: none; color: var(--ink);
   }
   .tool-card:hover { border-color: var(--gold); }
-  .tool-card h2 { font-size: 1.15rem; }
+  .tool-card h2 { font-size: 1.15rem; margin: 0 0 6px; }
+  .tool-card p { font-size: 0.85rem; color: var(--ink-soft); margin: 0; line-height: 1.5; }
   .tool-card-soon { cursor: default; opacity: 0.72; }
   .tool-card-soon:hover { border-color: var(--line); }
   .badge-soon {
@@ -270,10 +271,11 @@
   var visibleTools = [];
 
   function renderToolCard(t) {
+    var descripcion = t.descripcion ? '<p>' + escapeHtml(t.descripcion) + '</p>' : '';
     if (t.disponible === false) {
-      return '<div class="tool-card tool-card-soon"><span class="badge-soon">Próximamente</span><br><h2>' + escapeHtml(t.nombre) + '</h2></div>';
+      return '<div class="tool-card tool-card-soon"><span class="badge-soon">Próximamente</span><br><h2>' + escapeHtml(t.nombre) + '</h2>' + descripcion + '</div>';
     }
-    return '<a class="tool-card" href="' + escapeHtml(t.slug) + '.html"><h2>' + escapeHtml(t.nombre) + '</h2></a>';
+    return '<a class="tool-card" href="' + escapeHtml(t.slug) + '.html"><h2>' + escapeHtml(t.nombre) + '</h2>' + descripcion + '</a>';
   }
 
   function toolLinkHtml(t) {
