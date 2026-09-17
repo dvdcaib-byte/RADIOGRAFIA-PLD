@@ -161,9 +161,8 @@
   }
   .cat-tarjeta h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 1.1rem; color: #EEF1EE; margin: 0; }
   .cat-tarjeta p { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.82rem; color: #9AA3A0; margin: 6px 0 0; line-height: 1.5; }
-  .cat-tarjeta-soon { cursor: default; opacity: 0.65; }
+  .cat-tarjeta-soon { cursor: default; }
   .cat-tarjeta-soon:hover h3 { color: #EEF1EE; }
-  .cat-tarjeta-grupo-soon { color: #9AA3A0; }
 
   /* Tarjetas del Nivel 2 (listado dentro de una categoría) — claras, sin rediseñar todavía. */
   .tool-card {
@@ -332,9 +331,7 @@
   function renderCategoriaTarjeta(t, categoriaKey) {
     var descripcion = t.descripcion ? '<p>' + escapeHtml(t.descripcion) + '</p>' : '';
     if (t.disponible === false) {
-      return '<div class="cat-tarjeta cat-tarjeta-soon">' +
-        '<p class="cat-tarjeta-grupo cat-tarjeta-grupo-soon">Próximamente</p>' +
-        '<h3>' + escapeHtml(t.nombre) + '</h3>' + descripcion + '</div>';
+      return '<div class="cat-tarjeta cat-tarjeta-soon"><h3>' + escapeHtml(t.nombre) + '</h3></div>';
     }
     var subMap = SUBSECCIONES[categoriaKey] || {};
     var grupoKey = subMap[t.slug] || 'otros';
