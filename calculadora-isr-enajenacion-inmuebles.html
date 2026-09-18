@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de ISR — Enajenación de Inmuebles</title>
+<style>html.access-gate-hidden body { display: none; }</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="access-gate.js" data-tool-slug="calculadora-isr-enajenacion-inmuebles"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #EEF1EE;
+    --paper-raised: #F8F8F3;
+    --ink: #16202B;
+    --ink-soft: #3C4750;
+    --line: #D6DBD4;
+    --gold: #93641F;
+    --gold-soft: #E4D6BC;
+    --brick: #9B3226;
+    --brick-soft: #EFD7D2;
+    --teal: #2F5D57;
+    --teal-soft: #D6E3E0;
+    --green: #2F6B3A;
+    --green-soft: #D9E8DA;
+    --shadow: 0 1px 2px rgba(22,32,43,0.06), 0 8px 24px rgba(22,32,43,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+      --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+      --teal: #7FAFA6; --teal-soft: #1E2E2C; --green: #7FBF8A; --green-soft: #1E2E20;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12181F; --paper-raised: #1B232C; --ink: #EAE7DE; --ink-soft: #B7BDB6;
+    --line: #303A39; --gold: #D3A55C; --gold-soft: #3A2F1C; --brick: #D4776A; --brick-soft: #3A2320;
+    --teal: #7FAFA6; --teal-soft: #1E2E2C; --green: #7FBF8A; --green-soft: #1E2E20;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1040px; margin: 0 auto; padding: clamp(28px, 5vw, 56px) clamp(16px, 5vw, 40px) 80px; }
+
+  .nivel-back {
+    display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--ink-soft);
+    text-decoration: none; margin-bottom: 20px;
+  }
+  .nivel-back:hover { color: var(--gold); }
+  .page-header-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.76rem; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--gold); margin: 0 0 12px; font-weight: 500;
+  }
+  .logout-link {
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 0.85rem; color: var(--ink-soft);
+    text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0;
+  }
+  .logout-link:hover { color: var(--brick); }
+  h1 {
+    font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: clamp(1.6rem, 3.2vw, 2rem);
+    margin: 0; line-height: 1.15; text-wrap: balance;
+  }
+  .title-rule { width: 56px; height: 3px; background: var(--gold); border-radius: 2px; margin: 20px 0; }
+  .lede { font-size: 1.02rem; color: var(--ink-soft); max-width: 760px; line-height: 1.6; text-align: justify; margin: 0 0 8px; }
+  h2 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 1.25rem; margin: 0 0 4px; }
+  h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 1.05rem; margin: 0 0 8px; }
+  .section { margin-top: 40px; }
+  .section-note { font-size: 0.86rem; color: var(--ink-soft); margin: 4px 0 16px; max-width: 760px; }
+  .format-note { font-size: 0.82rem; color: #5C6461; margin: 10px 0 0; max-width: 760px; }
+
+  label { display: block; font-size: 0.82rem; color: var(--ink-soft); margin: 0 0 5px; }
+  input[type="text"], input[type="number"], input[type="date"], select {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 4px;
+    background: var(--paper-raised); color: var(--ink); font-family: 'IBM Plex Sans', sans-serif; font-size: 0.92rem;
+  }
+  .field { margin-bottom: 16px; }
+  .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 16px; }
+  .checkbox-row input { width: auto; }
+  .checkbox-row label { margin: 0; font-size: 0.88rem; color: var(--ink); }
+
+  /* --- Selector de método (radio-cards) --- */
+  .metodo-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0 24px; }
+  .metodo-opcion {
+    display: block; border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px;
+    cursor: pointer; background: var(--paper-raised);
+  }
+  .metodo-opcion.activa { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+  .metodo-opcion input { display: none; }
+  .metodo-opcion-titulo { font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 1rem; margin-bottom: 3px; }
+  .metodo-opcion-desc { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.4; }
+
+  /* --- Dropzone oscuro (mismo tratamiento que Conciliación) --- */
+  .dropzone {
+    background: #16202B; border-radius: 6px; padding: 24px 22px; text-align: center; cursor: pointer;
+    transition: box-shadow 0.15s; margin: 12px 0 8px;
+  }
+  .dropzone.drag { box-shadow: 0 0 0 1px #D3A55C inset; }
+  .dropzone.loaded { box-shadow: 0 0 0 1px #7FBF8A inset; }
+  .dropzone input { display: none; }
+  .dz-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: #D3A55C; }
+  .dz-title { font-family: 'Newsreader', Georgia, serif; font-size: 1.1rem; font-weight: 500; color: #EEF1EE; margin: 8px 0 4px; }
+  .dz-hint { font-size: 0.82rem; color: #9AA3A0; }
+  .dz-file { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: #7FBF8A; margin-top: 10px; word-break: break-all; }
+  .dz-error { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: #D4776A; margin-top: 10px; }
+  .dz-status { font-size: 0.82rem; color: #9AA3A0; margin-top: 10px; }
+
+  /* --- Listas dinámicas (enajenantes / deducciones) --- */
+  .lista-dinamica { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+  .fila-dinamica {
+    display: grid; grid-template-columns: 1fr; gap: 8px; padding: 12px; background: var(--paper-raised);
+    border: 1px solid var(--line); border-radius: 6px; position: relative;
+  }
+  .fila-dinamica .field-row { margin-right: 28px; }
+  .btn-quitar {
+    position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--ink-soft);
+    cursor: pointer; font-size: 1rem; line-height: 1; padding: 2px 6px;
+  }
+  .btn-quitar:hover { color: var(--brick); }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; letter-spacing: 0.03em;
+    padding: 11px 28px; border-radius: 4px; border: 1px solid var(--gold); background: var(--gold);
+    color: var(--paper); cursor: pointer;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:not(:disabled):hover { opacity: 0.88; }
+  .btn-ghost { background: none; color: var(--ink-soft); border: 1px solid var(--line); }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold); opacity: 1; }
+  .btn-small {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; letter-spacing: 0.03em;
+    padding: 7px 14px; border-radius: 4px; border: 1px solid var(--line); background: none;
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .btn-small:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+  /* --- Resultado --- */
+  .resultado-box {
+    margin-top: 16px; padding: 20px 22px; background: var(--paper-raised); border: 1px solid var(--line);
+    border-radius: 6px; box-shadow: var(--shadow);
+  }
+  .resultado-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi-value { font-family: 'Newsreader', Georgia, serif; font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin-top: 4px; }
+  table.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  table.data-table th {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-soft); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line);
+  }
+  table.data-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+  table.data-table td.mono, table.data-table th.mono { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+  .resultado-nota { font-size: 0.82rem; color: var(--ink-soft); margin-top: 14px; line-height: 1.5; }
+
+  /* --- Listado de expedientes guardados --- */
+  .expediente-card {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 16px 18px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px;
+    margin-bottom: 10px; cursor: pointer;
+  }
+  .expediente-card:hover { border-color: var(--gold); }
+  .expediente-nombre { font-family: 'Newsreader', Georgia, serif; font-size: 1.02rem; margin: 0 0 3px; }
+  .expediente-meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.76rem; color: var(--ink-soft); }
+  .empty-state { color: var(--ink-soft); font-size: 0.9rem; padding: 20px 0; }
+
+  #vistaListado, #vistaForm, #vistaDetalle { display: none; }
+  #vistaListado.show, #vistaForm.show, #vistaDetalle.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <a href="panel.html#calculadoras" class="nivel-back">← Volver a Calculadoras</a>
+  <div class="page-header-row">
+    <p class="eyebrow">VEGA IBARRA ASOCIADOS · SUITE ACTUM</p>
+    <button class="logout-link" id="btnLogout">Cerrar sesión</button>
+  </div>
+  <h1>Calculadora de ISR por Enajenación de Inmuebles</h1>
+  <div class="title-rule"></div>
+  <p class="lede">Calcula el pago provisional (art. 126 LISR) y el pago local (art. 127 LISR) de una venta de inmueble. Puedes capturar todo a mano, o subir la escritura de adquisición para que se sugieran automáticamente la fecha de adquisición, el número de enajenantes y el precio de adquisición — siempre revisas y corriges antes de calcular. Cada cálculo se guarda como un expediente que puedes volver a abrir después.</p>
+
+  <!-- ===================== VISTA: LISTADO ===================== -->
+  <div id="vistaListado">
+    <div class="section" style="margin-top:28px;">
+      <div class="page-header-row">
+        <h2>Mis cálculos guardados</h2>
+        <button class="btn" id="btnNuevoCalculo">+ Nuevo cálculo</button>
+      </div>
+      <div id="listaExpedientes"><div class="empty-state">Cargando…</div></div>
+    </div>
+  </div>
+
+  <!-- ===================== VISTA: FORMULARIO ===================== -->
+  <div id="vistaForm">
+    <div class="page-header-row" style="margin-top:28px;">
+      <h2>Nuevo cálculo</h2>
+      <button class="btn-small" id="btnCancelarForm">← Volver al listado</button>
+    </div>
+
+    <div class="section">
+      <label for="nombreReferencia">Nombre o referencia del expediente</label>
+      <input type="text" id="nombreReferencia" placeholder="Ej. Venta Juan Pérez — Av. Insurgentes 123">
+    </div>
+
+    <div class="section">
+      <h3>Método de actualización</h3>
+      <p class="section-note">Regla 3.15.1 RMF (art. 121 LISR): puedes elegir cómo se actualiza el costo — por la tabla del Anexo 9 (por años transcurridos, sin datos adicionales) o por INPC (art. 121/124, mes a mes). El resultado puede variar entre ambos métodos.</p>
+      <div class="metodo-selector">
+        <label class="metodo-opcion activa" id="optAnexo9">
+          <input type="radio" name="metodo" value="anexo_9" checked>
+          <div class="metodo-opcion-titulo">Anexo 9 (RMF)</div>
+          <div class="metodo-opcion-desc">Factor por años transcurridos, tabla oficial. No requiere datos adicionales.</div>
+        </label>
+        <label class="metodo-opcion" id="optInpc">
+          <input type="radio" name="metodo" value="inpc">
+          <div class="metodo-opcion-titulo">INPC (art. 121/124)</div>
+          <div class="metodo-opcion-desc">Factor mes a mes por INPC. Requiere capturar 2 valores de INEGI.</div>
+        </label>
+      </div>
+      <div id="camposInpc" style="display:none;">
+        <div class="field-row">
+          <div class="field">
+            <label for="inpcAdquisicion">INPC del mes de adquisición</label>
+            <input type="number" step="0.00001" id="inpcAdquisicion">
+          </div>
+          <div class="field">
+            <label for="inpcEnajenacion">INPC del mes inmediato anterior a la enajenación</label>
+            <input type="number" step="0.00001" id="inpcEnajenacion">
+          </div>
+        </div>
+        <p class="format-note">Consulta ambos valores en el <a href="https://www.inegi.org.mx/app/indicesdeprecios/Estructura.aspx?idEstructura=112001300040" target="_blank" rel="noopener noreferrer">INPC Nacional mensual de INEGI</a>.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Escritura de adquisición (opcional)</h3>
+      <p class="section-note">Sube la escritura con la que el enajenante adquirió el inmueble — se sugieren 3 datos para revisar y corregir. Si prefieres, omite este paso y captura todo abajo directamente.</p>
+      <div class="dropzone" id="dzEscritura" tabindex="0" role="button" aria-label="Subir escritura de adquisición">
+        <div class="dz-label">Escritura de adquisición</div>
+        <div class="dz-title">Arrastra o haz clic para subir</div>
+        <div class="dz-hint">JPG, PNG o PDF.</div>
+        <div class="dz-status" id="dzStatus"></div>
+        <div class="dz-file" id="dzFile"></div>
+        <div class="dz-error" id="dzError"></div>
+        <input type="file" id="inputEscritura" accept=".jpg,.jpeg,.png,.pdf">
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Tipo de operación</h3>
+      <div class="field">
+        <select id="tipoCalculo">
+          <option value="terreno_y_construccion">Terreno y construcción</option>
+          <option value="terreno">Sólo terreno</option>
+          <option value="construccion">Sólo construcción</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Adquisición</h3>
+      <div class="field-row">
+        <div class="field"><label for="fechaAdquisicion">Fecha de adquisición</label><input type="date" id="fechaAdquisicion"></div>
+        <div class="field"><label for="valorAdquisicion">Valor de adquisición (costo comprobado)</label><input type="number" step="0.01" id="valorAdquisicion"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="superficieTerreno">Superficie de terreno (m², opcional)</label><input type="number" step="0.01" id="superficieTerreno"></div>
+        <div class="field"><label for="superficieConstruccion">Superficie de construcción (m², opcional)</label><input type="number" step="0.01" id="superficieConstruccion"></div>
+      </div>
+      <p class="format-note">Si el tipo de operación es "Terreno y construcción" y no se conoce el costo de cada parte por separado, el art. 124 fracc. I ordena tomar el terreno como el 20% del costo total y la construcción como el 80% restante — así se calcula aquí.</p>
+    </div>
+
+    <div class="section">
+      <h3>Enajenación (venta de hoy)</h3>
+      <div class="field-row">
+        <div class="field"><label for="fechaEnajenacion">Fecha de enajenación</label><input type="date" id="fechaEnajenacion"></div>
+        <div class="field"><label for="precioEnajenacion">Precio de enajenación</label><input type="number" step="0.01" id="precioEnajenacion"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Enajenantes</h3>
+      <p class="section-note">Si hay más de uno, la ganancia se prorratea según el porcentaje de cada quien. Deja el porcentaje vacío para dividir en partes iguales.</p>
+      <div class="lista-dinamica" id="listaEnajenantes"></div>
+      <button class="btn-small" id="btnAgregarEnajenante">+ Agregar enajenante</button>
+    </div>
+
+    <div class="section">
+      <h3>Deducciones autorizadas (art. 121, fracc. III y IV)</h3>
+      <p class="section-note">Gastos notariales, impuestos, derechos, avalúos, comisiones y mediaciones pagados por el enajenante. No incluyas aquí el costo de adquisición (ya capturado arriba) ni gastos de conservación (no son deducibles).</p>
+      <div class="lista-dinamica" id="listaDeducciones"></div>
+      <button class="btn-small" id="btnAgregarDeduccion">+ Agregar deducción</button>
+    </div>
+
+    <div class="section">
+      <h3>Exención de casa-habitación (art. 93, fracc. XIX)</h3>
+      <div class="checkbox-row">
+        <input type="checkbox" id="aplicaExencion">
+        <label for="aplicaExencion">Es la casa habitación del contribuyente y aplica la exención</label>
+      </div>
+      <div id="camposExencion" style="display:none;">
+        <p class="section-note">Exento hasta 700,000 UDIS. Requiere que en los <strong>3 años</strong> anteriores el contribuyente no haya vendido otra casa habitación exenta (declaración bajo protesta de decir verdad) — esta calculadora no verifica ese requisito por ti, solo aplica la exención sobre el monto.</p>
+        <div class="field" style="max-width:260px;">
+          <label for="valorUdi">Valor UDI del día de la operación</label>
+          <input type="number" step="0.000001" id="valorUdi">
+        </div>
+        <p class="format-note">Consulta el valor UDI del día en <a href="https://www.banxico.org.mx/tipcamb/tipCamMIActionForward.do?idioma=sp" target="_blank" rel="noopener noreferrer">Banxico</a>.</p>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" id="btnCalcular">Calcular</button>
+    </div>
+
+    <div class="section" id="seccionResultado" style="display:none;">
+      <h2>Resultado</h2>
+      <div class="resultado-box" id="resultadoBox"></div>
+      <div class="btn-row">
+        <button class="btn" id="btnGuardarExpediente">Guardar expediente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== VISTA: DETALLE DE EXPEDIENTE GUARDADO ===================== -->
+  <div id="vistaDetalle">
+    <div class="page-header-row" style="margin-top:28px;">
+      <h2 id="detalleTitulo">Expediente</h2>
+      <button class="btn-small" id="btnCerrarDetalle">← Volver al listado</button>
+    </div>
+    <div class="resultado-box" id="detalleBox"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SUPABASE_URL = 'https://cnlmwlbdlmkifaqwpbak.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_6QLQ5KQo1RZf44DpnH3oyg_iaWEIg5W';
+  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storage: window.sessionStorage }
+  });
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmtMoney(n) {
+    n = Number(n) || 0;
+    return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtFactor(n) {
+    return Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 5 });
+  }
+
+  // ============================================================
+  // TABLAS OFICIALES (ver planes/2026-09-01-mesa-control-notarial.md,
+  // sección 10, para la verificación de cada una contra la fuente
+  // primaria — actualizar manualmente cuando el SAT publique la
+  // siguiente versión de cada anexo).
+  // ============================================================
+
+  // Anexo 9 RMF 2026 (DOF 17/07/2026), regla 3.15.1 / art. 121 LISR.
+  // Índice 0 = "Hasta 1 año", índice N (1-95) = "Más de N hasta N+1
+  // años", índice 96 = "Más de 96 años en adelante".
+  var ANEXO_9_2026 = [
+    1.00, 1.04, 1.08, 1.13, 1.22, 1.30, 1.35, 1.39, 1.45, 1.53,
+    1.61, 1.65, 1.70, 1.78, 1.83, 1.91, 1.98, 2.07, 2.20, 2.28,
+    2.37, 2.46, 2.57, 2.68, 2.82, 2.96, 3.20, 3.55, 4.22, 4.87,
+    6.15, 9.34, 10.29, 11.06, 12.32, 14.53, 18.47, 22.62, 30.43, 84.25,
+    172.15, 285.63, 459.15, 796.14, 1672.24, 2188.34, 2796.68, 3399.54, 4000.50, 4781.98,
+    6157.59, 6898.00, 8134.03, 10079.45, 10746.36, 11218.73, 11771.81, 12383.78, 12658.88, 12830.57,
+    13230.55, 13362.16, 13896.73, 14141.70, 14489.13, 14384.83, 15160.69, 15218.67, 15580.04, 16665.39,
+    16778.90, 18500.43, 21677.19, 22148.91, 21392.37, 24899.10, 29867.17, 32948.31, 36441.92, 39298.74,
+    41725.55, 49157.59, 55418.85, 71706.07, 90356.08, 100614.85, 107833.85, 110684.08, 109294.74, 116651.12,
+    143511.58, 153079.01, 153079.01, 161798.71, 174073.09, 163315.76,
+    144500.58
+  ];
+
+  // Tarifa mensual art. 96 LISR 2026 (Anexo 8 RMF 2026, DOF 28-12-2025).
+  var TARIFA_96_2026 = [
+    { inf: 0.01, sup: 844.59, cuota: 0.00, pct: 0.0192 },
+    { inf: 844.60, sup: 7168.51, cuota: 16.22, pct: 0.0640 },
+    { inf: 7168.52, sup: 12598.02, cuota: 420.95, pct: 0.1088 },
+    { inf: 12598.03, sup: 14644.64, cuota: 1011.68, pct: 0.1600 },
+    { inf: 14644.65, sup: 17533.64, cuota: 1339.14, pct: 0.1792 },
+    { inf: 17533.65, sup: 35362.83, cuota: 1856.84, pct: 0.2136 },
+    { inf: 35362.84, sup: 55736.68, cuota: 5665.16, pct: 0.2352 },
+    { inf: 55736.69, sup: 106410.50, cuota: 10457.09, pct: 0.3000 },
+    { inf: 106410.51, sup: 141880.66, cuota: 25659.23, pct: 0.3200 },
+    { inf: 141880.67, sup: 425641.99, cuota: 37009.69, pct: 0.3400 },
+    { inf: 425642.00, sup: Infinity, cuota: 133488.54, pct: 0.3500 }
+  ];
+
+  function aplicarTarifa96(base) {
+    for (var i = 0; i < TARIFA_96_2026.length; i++) {
+      var r = TARIFA_96_2026[i];
+      if (base >= r.inf && base <= r.sup) return r.cuota + (base - r.inf) * r.pct;
+    }
+    var last = TARIFA_96_2026[TARIFA_96_2026.length - 1];
+    return last.cuota + (base - last.inf) * last.pct;
+  }
+
+  function factorAnexo9(anios) {
+    var idx = Math.min(Math.max(anios, 0), 96);
+    return ANEXO_9_2026[idx];
+  }
+
+  // Años transcurridos completos entre dos fechas (YYYY-MM-DD).
+  function aniosTranscurridos(fechaInicio, fechaFin) {
+    var a = new Date(fechaInicio + 'T00:00:00');
+    var b = new Date(fechaFin + 'T00:00:00');
+    var anios = b.getFullYear() - a.getFullYear();
+    var m = b.getMonth() - a.getMonth();
+    if (m < 0 || (m === 0 && b.getDate() < a.getDate())) anios--;
+    return Math.max(0, anios);
+  }
+
+  // ============================================================
+  // MOTOR DE CÁLCULO
+  // ============================================================
+
+  function calcularFactorActualizacion(metodo, anios, inpcAdq, inpcEnaj) {
+    if (metodo === 'inpc') {
+      if (!inpcAdq || !inpcEnaj) throw new Error('Captura los 2 valores de INPC.');
+      return inpcEnaj / inpcAdq;
+    }
+    return factorAnexo9(anios);
+  }
+
+  function calcular(input) {
+    var anios = aniosTranscurridos(input.fechaAdquisicion, input.fechaEnajenacion);
+    var aniosPago126 = Math.min(Math.max(anios, 1), 20);
+
+    var factorPrincipal = calcularFactorActualizacion(input.metodo, anios, input.inpcAdquisicion, input.inpcEnajenacion);
+
+    // --- 1. Separar terreno / construcción (art. 124) ---
+    var costoTerrenoOriginal, costoConstruccionOriginal;
+    if (input.tipoCalculo === 'terreno') {
+      costoTerrenoOriginal = input.valorAdquisicion; costoConstruccionOriginal = 0;
+    } else if (input.tipoCalculo === 'construccion') {
+      costoTerrenoOriginal = 0; costoConstruccionOriginal = input.valorAdquisicion;
+    } else {
+      costoTerrenoOriginal = input.valorAdquisicion * 0.20; // art. 124 fracc. I, fallback 20%
+      costoConstruccionOriginal = input.valorAdquisicion * 0.80;
+    }
+
+    // --- 2. Depreciar construcción 3%/año, piso 20% del costo inicial ---
+    var factorRemanenteConstruccion = Math.max(0.20, 1 - anios * 0.03);
+    var costoConstruccionDepreciado = costoConstruccionOriginal * factorRemanenteConstruccion;
+
+    // --- 3. Actualizar terreno + construcción depreciada ---
+    var costoTerrenoActualizado = costoTerrenoOriginal * factorPrincipal;
+    var costoConstruccionActualizado = costoConstruccionDepreciado * factorPrincipal;
+    var costoAdquisicionActualizado = costoTerrenoActualizado + costoConstruccionActualizado;
+
+    // --- 4. Piso del 10% del monto de enajenación (art. 121 fracc. I) ---
+    var pisoMinimo = input.precioEnajenacion * 0.10;
+    var costoAdquisicionFinal = Math.max(costoAdquisicionActualizado, pisoMinimo);
+    var seAplicoPiso10 = costoAdquisicionFinal > costoAdquisicionActualizado;
+
+    // --- 5. Deducciones (fracc. III y IV) ---
+    var deduccionesDetalle = (input.deducciones || []).map(function (d) {
+      var factorDeduccion;
+      if (input.metodo === 'anexo_9') {
+        var aniosGasto = aniosTranscurridos(d.fecha, input.fechaEnajenacion);
+        factorDeduccion = factorAnexo9(aniosGasto);
+      } else {
+        factorDeduccion = factorPrincipal; // aproximación: ver nota en el resultado
+      }
+      var montoActualizado = d.monto * factorDeduccion;
+      return { concepto: d.concepto, monto: d.monto, fecha: d.fecha, factor: factorDeduccion, montoActualizado: montoActualizado };
+    });
+    var totalDeducciones = deduccionesDetalle.reduce(function (s, d) { return s + d.montoActualizado; }, 0);
+
+    var costoTotalDeducible = costoAdquisicionFinal + totalDeducciones;
+
+    // --- 6. Ganancia bruta ---
+    var gananciaBruta = input.precioEnajenacion - costoTotalDeducible;
+    if (gananciaBruta < 0) gananciaBruta = 0;
+
+    // --- 7. Exención de casa-habitación (art. 93 fracc. XIX inciso a) ---
+    var exencion = null;
+    var gananciaGravable = gananciaBruta;
+    if (input.aplicaExencion && input.valorUdi) {
+      var umbralExento = 700000 * input.valorUdi;
+      if (input.precioEnajenacion <= umbralExento) {
+        gananciaGravable = 0;
+        exencion = { umbralExento: umbralExento, proporcionGravable: 0, totalmenteExento: true };
+      } else {
+        var proporcionGravable = (input.precioEnajenacion - umbralExento) / input.precioEnajenacion;
+        gananciaGravable = gananciaBruta * proporcionGravable;
+        exencion = { umbralExento: umbralExento, proporcionGravable: proporcionGravable, totalmenteExento: false };
+      }
+    }
+
+    // --- 8. Prorrateo entre enajenantes ---
+    var enajenantes = input.enajenantes && input.enajenantes.length ? input.enajenantes : [{ nombre: '(sin nombre)', porcentaje: null }];
+    var pctEspecificados = enajenantes.every(function (e) { return e.porcentaje != null && e.porcentaje !== ''; });
+    var n = enajenantes.length;
+
+    var porEnajenante = enajenantes.map(function (e) {
+      var pct = pctEspecificados ? (parseFloat(e.porcentaje) / 100) : (1 / n);
+      var gananciaEnajenante = gananciaGravable * pct;
+      var gananciaPorAnio = gananciaEnajenante / aniosPago126;
+      var impuestoPorAnio = aplicarTarifa96(gananciaPorAnio);
+      var pagoProvisional126 = impuestoPorAnio * aniosPago126;
+      var pagoLocal127 = gananciaEnajenante * 0.05;
+      var aEntidad = Math.min(pagoLocal127, pagoProvisional126);
+      var aFederacion = Math.max(0, pagoProvisional126 - aEntidad);
+      return {
+        nombre: e.nombre, porcentaje: pct * 100, gananciaEnajenante: gananciaEnajenante,
+        pagoProvisional126: pagoProvisional126, pagoLocal127: pagoLocal127,
+        aEntidad: aEntidad, aFederacion: aFederacion, totalAEnterar: pagoProvisional126
+      };
+    });
+
+    var totalAEnterarGeneral = porEnajenante.reduce(function (s, p) { return s + p.totalAEnterar; }, 0);
+
+    return {
+      anios: anios, aniosPago126: aniosPago126, factorPrincipal: factorPrincipal,
+      costoTerrenoOriginal: costoTerrenoOriginal, costoConstruccionOriginal: costoConstruccionOriginal,
+      factorRemanenteConstruccion: factorRemanenteConstruccion, costoConstruccionDepreciado: costoConstruccionDepreciado,
+      costoTerrenoActualizado: costoTerrenoActualizado, costoConstruccionActualizado: costoConstruccionActualizado,
+      costoAdquisicionActualizado: costoAdquisicionActualizado, seAplicoPiso10: seAplicoPiso10,
+      costoAdquisicionFinal: costoAdquisicionFinal, deduccionesDetalle: deduccionesDetalle,
+      totalDeducciones: totalDeducciones, costoTotalDeducible: costoTotalDeducible,
+      gananciaBruta: gananciaBruta, exencion: exencion, gananciaGravable: gananciaGravable,
+      porEnajenante: porEnajenante, totalAEnterarGeneral: totalAEnterarGeneral
+    };
+  }
+
+  // ============================================================
+  // INTERFAZ — listas dinámicas
+  // ============================================================
+
+  function filaEnajenante(nombre, porcentaje) {
+    var div = document.createElement('div');
+    div.className = 'fila-dinamica';
+    div.innerHTML =
+      '<button type="button" class="btn-quitar" aria-label="Quitar">✕</button>' +
+      '<div class="field-row">' +
+      '<div class="field"><label>Nombre</label><input type="text" class="enaj-nombre" value="' + escapeHtml(nombre || '') + '"></div>' +
+      '<div class="field"><label>% (vacío = partes iguales)</label><input type="number" step="0.01" class="enaj-pct" value="' + escapeHtml(porcentaje || '') + '"></div>' +
+      '</div>';
+    div.querySelector('.btn-quitar').addEventListener('click', function () { div.remove(); });
+    return div;
+  }
+
+  function filaDeduccion(concepto, monto, fecha, esDepreciable) {
+    var div = document.createElement('div');
+    div.className = 'fila-dinamica';
+    div.innerHTML =
+      '<button type="button" class="btn-quitar" aria-label="Quitar">✕</button>' +
+      '<div class="field-row">' +
+      '<div class="field"><label>Concepto</label><input type="text" class="ded-concepto" value="' + escapeHtml(concepto || '') + '" placeholder="Ej. Gastos notariales"></div>' +
+      '<div class="field"><label>Monto</label><input type="number" step="0.01" class="ded-monto" value="' + escapeHtml(monto || '') + '"></div>' +
+      '<div class="field"><label>Fecha del gasto</label><input type="date" class="ded-fecha" value="' + escapeHtml(fecha || '') + '"></div>' +
+      '</div>';
+    div.querySelector('.btn-quitar').addEventListener('click', function () { div.remove(); });
+    return div;
+  }
+
+  document.getElementById('btnAgregarEnajenante').addEventListener('click', function () {
+    document.getElementById('listaEnajenantes').appendChild(filaEnajenante('', ''));
+  });
+  document.getElementById('btnAgregarDeduccion').addEventListener('click', function () {
+    document.getElementById('listaDeducciones').appendChild(filaDeduccion('', '', ''));
+  });
+
+  function leerEnajenantes() {
+    return Array.prototype.map.call(document.querySelectorAll('#listaEnajenantes .fila-dinamica'), function (div) {
+      return {
+        nombre: div.querySelector('.enaj-nombre').value.trim(),
+        porcentaje: div.querySelector('.enaj-pct').value
+      };
+    }).filter(function (e) { return e.nombre; });
+  }
+  function leerDeducciones() {
+    return Array.prototype.map.call(document.querySelectorAll('#listaDeducciones .fila-dinamica'), function (div) {
+      return {
+        concepto: div.querySelector('.ded-concepto').value.trim(),
+        monto: parseFloat(div.querySelector('.ded-monto').value) || 0,
+        fecha: div.querySelector('.ded-fecha').value
+      };
+    }).filter(function (d) { return d.concepto && d.monto; });
+  }
+
+  // Selector de método
+  var optAnexo9 = document.getElementById('optAnexo9');
+  var optInpc = document.getElementById('optInpc');
+  var camposInpc = document.getElementById('camposInpc');
+  function actualizarMetodoUI() {
+    var esInpc = document.querySelector('input[name="metodo"]:checked').value === 'inpc';
+    optAnexo9.classList.toggle('activa', !esInpc);
+    optInpc.classList.toggle('activa', esInpc);
+    camposInpc.style.display = esInpc ? 'block' : 'none';
+  }
+  document.querySelectorAll('input[name="metodo"]').forEach(function (r) { r.addEventListener('change', actualizarMetodoUI); });
+
+  document.getElementById('aplicaExencion').addEventListener('change', function (e) {
+    document.getElementById('camposExencion').style.display = e.target.checked ? 'block' : 'none';
+  });
+
+  // ============================================================
+  // Dropzone + extracción por IA (Edge Function extraer-datos-escritura)
+  // ============================================================
+
+  var dz = document.getElementById('dzEscritura');
+  var dzInput = document.getElementById('inputEscritura');
+  var dzFile = document.getElementById('dzFile');
+  var dzError = document.getElementById('dzError');
+  var dzStatus = document.getElementById('dzStatus');
+  var documentoStoragePath = null;
+  var documentoArchivo = null;
+  var extraidoPorIa = false;
+
+  function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result.split(',')[1]); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function manejarArchivo(file) {
+    dzError.textContent = '';
+    dzFile.textContent = file.name;
+    dz.classList.add('loaded');
+    documentoArchivo = file;
+    dzStatus.textContent = 'Analizando documento…';
+
+    fileToBase64(file).then(function (base64) {
+      return client.functions.invoke('extraer-datos-escritura', {
+        body: { archivo_base64: base64, media_type: file.type }
+      });
+    }).then(function (res) {
+      dzStatus.textContent = '';
+      if (res.error) {
+        dzError.textContent = 'No se pudo extraer automáticamente — captura los datos a mano.';
+        return;
+      }
+      var d = res.data || {};
+      var huboSugerencia = false;
+      if (d.fecha_adquisicion) { document.getElementById('fechaAdquisicion').value = d.fecha_adquisicion; huboSugerencia = true; }
+      if (d.precio_adquisicion) { document.getElementById('valorAdquisicion').value = d.precio_adquisicion; huboSugerencia = true; }
+      if (d.numero_enajenantes) {
+        var lista = document.getElementById('listaEnajenantes');
+        lista.innerHTML = '';
+        for (var i = 0; i < d.numero_enajenantes; i++) lista.appendChild(filaEnajenante('', ''));
+        huboSugerencia = true;
+      }
+      extraidoPorIa = huboSugerencia;
+      dzStatus.textContent = huboSugerencia
+        ? 'Datos sugeridos — revísalos y corrígelos si hace falta.'
+        : 'No se identificaron datos con certeza — captúralos a mano.';
+    }).catch(function () {
+      dzStatus.textContent = '';
+      dzError.textContent = 'No se pudo procesar el documento — captura los datos a mano.';
+    });
+  }
+
+  dz.addEventListener('click', function () { dzInput.click(); });
+  dz.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') dzInput.click(); });
+  dzInput.addEventListener('change', function () { if (dzInput.files[0]) manejarArchivo(dzInput.files[0]); });
+  dz.addEventListener('dragover', function (e) { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', function () { dz.classList.remove('drag'); });
+  dz.addEventListener('drop', function (e) {
+    e.preventDefault(); dz.classList.remove('drag');
+    if (e.dataTransfer.files[0]) manejarArchivo(e.dataTransfer.files[0]);
+  });
+
+  // ============================================================
+  // Calcular / renderizar resultado
+  // ============================================================
+
+  var ultimoInput = null;
+  var ultimoResultado = null;
+
+  document.getElementById('btnCalcular').addEventListener('click', function () {
+    try {
+      var input = {
+        metodo: document.querySelector('input[name="metodo"]:checked').value,
+        inpcAdquisicion: parseFloat(document.getElementById('inpcAdquisicion').value) || null,
+        inpcEnajenacion: parseFloat(document.getElementById('inpcEnajenacion').value) || null,
+        tipoCalculo: document.getElementById('tipoCalculo').value,
+        fechaAdquisicion: document.getElementById('fechaAdquisicion').value,
+        valorAdquisicion: parseFloat(document.getElementById('valorAdquisicion').value) || 0,
+        fechaEnajenacion: document.getElementById('fechaEnajenacion').value,
+        precioEnajenacion: parseFloat(document.getElementById('precioEnajenacion').value) || 0,
+        superficieTerreno: parseFloat(document.getElementById('superficieTerreno').value) || null,
+        superficieConstruccion: parseFloat(document.getElementById('superficieConstruccion').value) || null,
+        enajenantes: leerEnajenantes(),
+        deducciones: leerDeducciones(),
+        aplicaExencion: document.getElementById('aplicaExencion').checked,
+        valorUdi: parseFloat(document.getElementById('valorUdi').value) || null
+      };
+      if (!input.fechaAdquisicion || !input.valorAdquisicion || !input.fechaEnajenacion || !input.precioEnajenacion) {
+        alert('Completa al menos fechas y montos de adquisición y enajenación.');
+        return;
+      }
+      ultimoInput = input;
+      ultimoResultado = calcular(input);
+      renderResultado(ultimoResultado, input, 'resultadoBox');
+      document.getElementById('seccionResultado').style.display = 'block';
+      document.getElementById('seccionResultado').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      alert(err.message || String(err));
+    }
+  });
+
+  function renderResultado(r, input, containerId) {
+    var html = '';
+    html += '<div class="resultado-kpis">';
+    html += '<div><div class="kpi-value">' + fmtMoney(r.gananciaGravable) + '</div><div class="kpi-label">Ganancia gravable</div></div>';
+    html += '<div><div class="kpi-value">' + fmtMoney(r.totalAEnterarGeneral) + '</div><div class="kpi-label">Total ISR a enterar (art. 126)</div></div>';
+    html += '<div><div class="kpi-value">' + r.anios + '</div><div class="kpi-label">Años transcurridos</div></div>';
+    html += '<div><div class="kpi-value">' + fmtFactor(r.factorPrincipal) + '</div><div class="kpi-label">Factor de actualización</div></div>';
+    html += '</div>';
+
+    html += '<h3>Desglose del costo deducible</h3>';
+    html += '<table class="data-table"><tbody>';
+    html += '<tr><td>Costo de terreno (original)</td><td class="mono">' + fmtMoney(r.costoTerrenoOriginal) + '</td></tr>';
+    html += '<tr><td>Costo de construcción (original)</td><td class="mono">' + fmtMoney(r.costoConstruccionOriginal) + '</td></tr>';
+    html += '<tr><td>Construcción depreciada (factor ' + fmtFactor(r.factorRemanenteConstruccion) + ')</td><td class="mono">' + fmtMoney(r.costoConstruccionDepreciado) + '</td></tr>';
+    html += '<tr><td>Costo de adquisición actualizado</td><td class="mono">' + fmtMoney(r.costoAdquisicionActualizado) + '</td></tr>';
+    if (r.seAplicoPiso10) {
+      html += '<tr><td>Piso mínimo aplicado (10% del monto de enajenación, art. 121 fracc. I)</td><td class="mono">' + fmtMoney(r.costoAdquisicionFinal) + '</td></tr>';
+    }
+    html += '<tr><td>Deducciones (gastos y comisiones actualizados)</td><td class="mono">' + fmtMoney(r.totalDeducciones) + '</td></tr>';
+    html += '<tr><td><strong>Costo total deducible</strong></td><td class="mono"><strong>' + fmtMoney(r.costoTotalDeducible) + '</strong></td></tr>';
+    html += '<tr><td>Precio de enajenación</td><td class="mono">' + fmtMoney(input.precioEnajenacion) + '</td></tr>';
+    html += '<tr><td><strong>Ganancia bruta</strong></td><td class="mono"><strong>' + fmtMoney(r.gananciaBruta) + '</strong></td></tr>';
+    html += '</tbody></table>';
+
+    if (r.exencion) {
+      html += '<h3 style="margin-top:20px;">Exención de casa-habitación</h3>';
+      html += '<p class="resultado-nota">Umbral exento (700,000 UDIS): ' + fmtMoney(r.exencion.umbralExento) + '. ';
+      html += r.exencion.totalmenteExento
+        ? 'El precio de enajenación no rebasa el umbral — toda la ganancia queda exenta.'
+        : 'El precio rebasa el umbral; solo el ' + (r.exencion.proporcionGravable * 100).toFixed(2) + '% de la ganancia es gravable.';
+      html += '</p>';
+    }
+
+    html += '<h3 style="margin-top:20px;">Pago por enajenante</h3>';
+    html += '<table class="data-table"><thead><tr><th>Enajenante</th><th>%</th><th>Ganancia</th><th>Pago provisional (126)</th><th>A la entidad (127)</th><th>A la federación</th></tr></thead><tbody>';
+    r.porEnajenante.forEach(function (p) {
+      html += '<tr><td>' + escapeHtml(p.nombre) + '</td><td class="mono">' + p.porcentaje.toFixed(2) + '%</td>' +
+        '<td class="mono">' + fmtMoney(p.gananciaEnajenante) + '</td><td class="mono">' + fmtMoney(p.totalAEnterar) + '</td>' +
+        '<td class="mono">' + fmtMoney(p.aEntidad) + '</td><td class="mono">' + fmtMoney(p.aFederacion) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+
+    if (input.metodo === 'inpc' && r.deduccionesDetalle.length) {
+      html += '<p class="resultado-nota"><strong>Nota:</strong> bajo el método INPC, las deducciones se actualizaron con el mismo factor que el costo de adquisición (aproximación) — si alguna deducción tiene una fecha muy distinta a la de adquisición, verifica su INPC específico por separado.</p>';
+    }
+    html += '<p class="resultado-nota">El pago local (art. 127, 5% de la ganancia) es acreditable contra el pago provisional del art. 126 — el "Total ISR a enterar" ya refleja el crédito, no se suman ambos.</p>';
+
+    document.getElementById(containerId).innerHTML = html;
+  }
+
+  // ============================================================
+  // Persistencia — guardar / listar / abrir expedientes
+  // ============================================================
+
+  function mostrarVista(nombre) {
+    ['vistaListado', 'vistaForm', 'vistaDetalle'].forEach(function (id) {
+      document.getElementById(id).classList.remove('show');
+    });
+    document.getElementById(nombre).classList.add('show');
+  }
+
+  function limpiarFormulario() {
+    document.getElementById('nombreReferencia').value = '';
+    document.getElementById('tipoCalculo').value = 'terreno_y_construccion';
+    document.getElementById('fechaAdquisicion').value = '';
+    document.getElementById('valorAdquisicion').value = '';
+    document.getElementById('fechaEnajenacion').value = '';
+    document.getElementById('precioEnajenacion').value = '';
+    document.getElementById('superficieTerreno').value = '';
+    document.getElementById('superficieConstruccion').value = '';
+    document.getElementById('inpcAdquisicion').value = '';
+    document.getElementById('inpcEnajenacion').value = '';
+    document.getElementById('aplicaExencion').checked = false;
+    document.getElementById('camposExencion').style.display = 'none';
+    document.getElementById('valorUdi').value = '';
+    document.getElementById('listaEnajenantes').innerHTML = '';
+    document.getElementById('listaEnajenantes').appendChild(filaEnajenante('', ''));
+    document.getElementById('listaDeducciones').innerHTML = '';
+    document.getElementById('seccionResultado').style.display = 'none';
+    document.querySelector('input[name="metodo"][value="anexo_9"]').checked = true;
+    actualizarMetodoUI();
+    dzFile.textContent = ''; dzError.textContent = ''; dzStatus.textContent = '';
+    dz.classList.remove('loaded');
+    documentoArchivo = null; documentoStoragePath = null; extraidoPorIa = false;
+    ultimoInput = null; ultimoResultado = null;
+  }
+
+  document.getElementById('btnNuevoCalculo').addEventListener('click', function () {
+    limpiarFormulario();
+    mostrarVista('vistaForm');
+  });
+  document.getElementById('btnCancelarForm').addEventListener('click', function () {
+    mostrarVista('vistaListado');
+    cargarListado();
+  });
+  document.getElementById('btnCerrarDetalle').addEventListener('click', function () {
+    mostrarVista('vistaListado');
+    cargarListado();
+  });
+
+  document.getElementById('btnGuardarExpediente').addEventListener('click', async function () {
+    if (!ultimoResultado) return;
+    var nombreReferencia = document.getElementById('nombreReferencia').value.trim();
+    if (!nombreReferencia) { alert('Ponle un nombre o referencia al expediente antes de guardarlo.'); return; }
+
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Guardando…';
+
+    try {
+      var sessionRes = await client.auth.getSession();
+      var userId = sessionRes.data.session.user.id;
+
+      var calculoId = crypto.randomUUID();
+      var storagePath = null;
+
+      if (documentoArchivo) {
+        storagePath = userId + '/' + calculoId + '/' + documentoArchivo.name;
+        var upload = await client.storage.from('isr-documentos').upload(storagePath, documentoArchivo);
+        if (upload.error) { console.error(upload.error); storagePath = null; }
+      }
+
+      var row = {
+        id: calculoId,
+        usuario_id: userId,
+        nombre_referencia: nombreReferencia,
+        tipo_calculo: ultimoInput.tipoCalculo,
+        fecha_adquisicion: ultimoInput.fechaAdquisicion,
+        valor_adquisicion: ultimoInput.valorAdquisicion,
+        fecha_enajenacion: ultimoInput.fechaEnajenacion,
+        precio_enajenacion: ultimoInput.precioEnajenacion,
+        superficie_terreno: ultimoInput.superficieTerreno,
+        superficie_construccion: ultimoInput.superficieConstruccion,
+        enajenantes: ultimoInput.enajenantes,
+        deducciones: ultimoInput.deducciones,
+        aplica_exencion_casa_habitacion: ultimoInput.aplicaExencion,
+        valor_udi: ultimoInput.valorUdi,
+        metodo_actualizacion: ultimoInput.metodo,
+        inpc_adquisicion: ultimoInput.inpcAdquisicion,
+        inpc_enajenacion: ultimoInput.inpcEnajenacion,
+        resultado: ultimoResultado,
+        extraido_por_ia: extraidoPorIa,
+        documento_storage_path: storagePath
+      };
+
+      var insertRes = await client.from('isr_calculos').insert(row);
+      if (insertRes.error) throw insertRes.error;
+
+      alert('Expediente guardado.');
+      mostrarVista('vistaListado');
+      cargarListado();
+    } catch (err) {
+      alert('No se pudo guardar: ' + (err.message || String(err)));
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar expediente';
+    }
+  });
+
+  async function cargarListado() {
+    var cont = document.getElementById('listaExpedientes');
+    cont.innerHTML = '<div class="empty-state">Cargando…</div>';
+    var res = await client.from('isr_calculos').select('*').order('creado_en', { ascending: false });
+    if (res.error) {
+      cont.innerHTML = '<div class="empty-state">No se pudo cargar el listado.</div>';
+      return;
+    }
+    if (!res.data.length) {
+      cont.innerHTML = '<div class="empty-state">Todavía no tienes cálculos guardados.</div>';
+      return;
+    }
+    cont.innerHTML = res.data.map(function (c) {
+      var fecha = new Date(c.creado_en).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+      return '<div class="expediente-card" data-id="' + c.id + '">' +
+        '<div><p class="expediente-nombre">' + escapeHtml(c.nombre_referencia) + '</p>' +
+        '<p class="expediente-meta">Guardado el ' + fecha + ' · ' + fmtMoney(c.resultado.totalAEnterarGeneral) + '</p></div>' +
+        '</div>';
+    }).join('');
+    Array.prototype.forEach.call(cont.querySelectorAll('.expediente-card'), function (card) {
+      card.addEventListener('click', function () { abrirExpediente(card.dataset.id, res.data); });
+    });
+  }
+
+  function abrirExpediente(id, todos) {
+    var c = todos.find(function (x) { return x.id === id; });
+    if (!c) return;
+    document.getElementById('detalleTitulo').textContent = c.nombre_referencia;
+    var inputReconstruido = {
+      precioEnajenacion: c.precio_enajenacion, metodo: c.metodo_actualizacion
+    };
+    renderResultado(c.resultado, inputReconstruido, 'detalleBox');
+    if (c.documento_storage_path) {
+      client.storage.from('isr-documentos').createSignedUrl(c.documento_storage_path, 300).then(function (res) {
+        if (res.data && res.data.signedUrl) {
+          document.getElementById('detalleBox').insertAdjacentHTML(
+            'beforeend',
+            '<p class="resultado-nota"><a href="' + res.data.signedUrl + '" target="_blank" rel="noopener noreferrer">Ver escritura subida ↗</a></p>'
+          );
+        }
+      });
+    }
+    mostrarVista('vistaDetalle');
+  }
+
+  document.getElementById('btnLogout').addEventListener('click', function () {
+    var goToPanel = function () { window.location.href = 'panel.html'; };
+    client.auth.signOut().then(goToPanel);
+  });
+
+  // ============================================================
+  // Init
+  // ============================================================
+  document.getElementById('listaEnajenantes').appendChild(filaEnajenante('', ''));
+  mostrarVista('vistaListado');
+  cargarListado();
+})();
+</script>
+</body>
+</html>
