@@ -81,6 +81,7 @@
   .login-pw-row label { margin: 0; }
   .login-forgot { font-size: 0.78rem; text-decoration: none; }
   .login-help { font-size: 0.82rem; color: var(--ink-soft); text-align: center; margin: 20px 0 0; }
+  .login-hint { font-size: 0.78rem; color: var(--ink-soft); margin: 6px 0 0; }
   label { display: block; font-size: 0.82rem; color: var(--ink-soft); margin: 16px 0 6px; }
   input[type="email"], input[type="password"] {
     width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px;
@@ -222,6 +223,41 @@
   </div>
 </div>
 
+<div id="setPasswordView" style="display:none;">
+  <div class="login-brand">
+    <div>
+      <svg class="login-brand-icon" width="40" height="40" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="1.4"></circle>
+        <path d="M24 12v24M14 18l10-6 10 6M14 30l10 6 10-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <p class="login-brand-eyebrow">Suite Actum</p>
+      <h1>VEGA IBARRA ASOCIADOS</h1>
+      <div class="login-brand-rule"></div>
+      <p class="login-brand-tagline">Panel operativo de la notaría. Accede con tu cuenta para consultar y gestionar tus expedientes.</p>
+    </div>
+    <div>
+      <p class="login-brand-footnote">Acceso restringido a personal autorizado. Toda la actividad en este sistema queda registrada.</p>
+      <p class="login-brand-fineprint">© 2026 VEGA IBARRA ASOCIADOS. Todos los derechos reservados. · Suite Actum, powered by LabPDI.</p>
+    </div>
+  </div>
+  <div class="login-form-side">
+    <div class="login-card">
+      <p class="eyebrow">VEGA IBARRA ASOCIADOS · Suite Actum</p>
+      <h1>Crea tu contraseña</h1>
+      <p class="sub">Es la primera vez que entras. Define tu contraseña para continuar.</p>
+      <form id="setPasswordForm">
+        <label for="newPassword">Nueva contraseña</label>
+        <input type="password" id="newPassword" required autocomplete="new-password" minlength="8">
+        <p class="login-hint">Mínimo 8 caracteres.</p>
+        <label for="newPassword2">Confirma tu contraseña</label>
+        <input type="password" id="newPassword2" required autocomplete="new-password" minlength="8">
+        <button type="submit" class="btn" id="btnSetPassword">Guardar contraseña</button>
+        <div class="login-error" id="setPasswordError"></div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div id="dashboardView">
   <div class="page">
     <a href="#" class="nivel-back" id="nivelBackLink" style="display:none;">← Volver a Tus herramientas</a>
@@ -251,19 +287,37 @@
     return new URLSearchParams(window.location.search).get(name);
   }
 
+  // Enlaces de invitación/recuperación de Supabase llegan con los tokens en
+  // el fragmento (#access_token=...&type=invite), no en la query string.
+  var hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+  var hashType = hashParams.get('type');
+  var hashError = hashParams.get('error') || hashParams.get('error_code');
+
+  function limpiarHash() {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   function showDashboard() {
     document.getElementById('loginView').style.display = 'none';
+    document.getElementById('setPasswordView').style.display = 'none';
     document.getElementById('dashboardView').style.display = 'block';
     loadTools();
   }
 
   function showLogin() {
     document.getElementById('dashboardView').style.display = 'none';
+    document.getElementById('setPasswordView').style.display = 'none';
     document.getElementById('loginView').style.display = 'grid';
+  }
+
+  function showSetPassword() {
+    document.getElementById('loginView').style.display = 'none';
+    document.getElementById('dashboardView').style.display = 'none';
+    document.getElementById('setPasswordView').style.display = 'grid';
   }
 
   var CATEGORIA_LABELS = { pld: 'PLD', administrativas: 'HERRAMIENTAS ADMINISTRATIVAS', calculadoras: 'CALCULADORAS' };
@@ -450,9 +504,65 @@
     showLogin();
   });
 
+  document.getElementById('setPasswordForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var errorBox = document.getElementById('setPasswordError');
+    var btn = document.getElementById('btnSetPassword');
+    errorBox.classList.remove('show');
+
+    var p1 = document.getElementById('newPassword').value;
+    var p2 = document.getElementById('newPassword2').value;
+    if (p1.length < 8) {
+      errorBox.textContent = 'La contraseña debe tener al menos 8 caracteres.';
+      errorBox.classList.add('show');
+      return;
+    }
+    if (p1 !== p2) {
+      errorBox.textContent = 'Las contraseñas no coinciden.';
+      errorBox.classList.add('show');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    var res = await client.auth.updateUser({ password: p1 });
+    btn.disabled = false;
+    btn.textContent = 'Guardar contraseña';
+
+    if (res.error) {
+      errorBox.textContent = 'No se pudo guardar la contraseña: ' + res.error.message;
+      errorBox.classList.add('show');
+      return;
+    }
+
+    limpiarHash();
+    showDashboard();
+  });
+
+  // Si el enlace de invitación ya expiró o ya se usó (p.ej. un escáner de
+  // seguridad del correo lo consumió antes que la persona), Supabase
+  // redirige aquí con el error en el fragmento en vez de una sesión.
+  client.auth.onAuthStateChange(function (event) {
+    if (event === 'PASSWORD_RECOVERY') { showSetPassword(); }
+  });
+
   (async function init() {
+    if (hashError) {
+      limpiarHash();
+      showLogin();
+      var errorBox = document.getElementById('loginError');
+      errorBox.textContent = 'El enlace ya no es válido (expiró o ya se usó). Pide que te envíen uno nuevo.';
+      errorBox.classList.add('show');
+      return;
+    }
+
     var sessionRes = await client.auth.getSession();
     var session = sessionRes.data && sessionRes.data.session;
+
+    if (session && (hashType === 'invite' || hashType === 'recovery')) {
+      showSetPassword();
+      return;
+    }
     if (session) {
       var next = qs('next');
       if (next) { window.location.href = next; return; }
