@@ -314,7 +314,7 @@
 
       <h3 style="margin-top:22px;font-size:1.05rem;">Datos de la operación</h3>
       <div class="field-row">
-        <div><label>Monto (pesos)</label><input id="fMonto" type="number" min="0" step="0.01"></div>
+        <div><label id="lblMonto">Monto (pesos)</label><input id="fMonto" type="number" min="0" step="0.01"></div>
         <div><label>Forma de pago</label>
           <select id="fFormaPago">
             <option value="transferencia">Transferencia</option>
@@ -323,6 +323,23 @@
             <option value="otro">Otro</option>
           </select>
         </div>
+      </div>
+      <div id="bloqueValores" style="display:none;">
+        <p class="hint">Para este acto el Aviso se determina con el valor más alto entre el precio pactado, el valor catastral, el valor comercial y el monto garantizado (art. 17, fracc. XII, Apartado A, inciso a). Captura los que apliquen; el sistema toma el mayor.</p>
+        <div class="field-row">
+          <div><label>Valor catastral (pesos)</label><input id="fValorCatastral" type="number" min="0" step="0.01"></div>
+          <div><label>Valor comercial o de avalúo (pesos)</label><input id="fValorComercial" type="number" min="0" step="0.01"></div>
+        </div>
+        <label>Monto garantizado, suerte principal (pesos)</label>
+        <input id="fMontoGarantizado" type="number" min="0" step="0.01">
+      </div>
+      <div id="bloqueExcepcion" style="display:none;">
+        <label id="lblExcepcion"></label>
+        <select id="fAcreedorFin">
+          <option value="">Selecciona una respuesta…</option>
+          <option value="no">No</option>
+          <option value="si">Sí</option>
+        </select>
       </div>
       <label style="display:flex;align-items:center;gap:8px;margin-top:16px;">
         <input type="checkbox" id="fActoCombinado" style="width:auto;">
@@ -361,6 +378,14 @@
     if (n == null) return '—';
     return Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
   }
+  function fmtUma(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString('es-MX', { maximumFractionDigits: 2 }) + ' UMA';
+  }
+  var ORIGEN_BASE_LABEL = {
+    precio_pactado: 'precio pactado', valor_catastral: 'valor catastral', valor_comercial: 'valor comercial',
+    monto_garantizado: 'monto garantizado', monto_operacion: 'monto de la operación'
+  };
   function fmtDate(s) {
     if (!s) return '—';
     return new Date(s).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -403,7 +428,8 @@
     }).join('');
 
     var actosRes = await client.from('mc_actos_juridicos')
-      .select('id, nombre, documentos_requeridos, campos_adicionales').eq('activo', true).order('nombre');
+      .select('id, nombre, documentos_requeridos, campos_adicionales, reglas:mc_reglas_pld(usa_valor_mas_alto, pregunta_excepcion, monto_es_mensual, vigente_desde, vigente_hasta)')
+      .eq('activo', true).order('nombre');
     actosCache = actosRes.data || [];
     var selActo = document.getElementById('fActo');
     selActo.innerHTML = actosCache.map(function (a) {
@@ -414,10 +440,32 @@
 
   // Formulario dinámico: cambia según el acto elegido — el acto es la fuente
   // única de verdad para el checklist de documentos y los campos extra.
+  function reglaVigente(acto) {
+    var hoy = new Date().toISOString().slice(0, 10);
+    var vigentes = (acto && acto.reglas || []).filter(function (r) {
+      return r.vigente_desde <= hoy && (!r.vigente_hasta || r.vigente_hasta >= hoy);
+    });
+    vigentes.sort(function (a, b) { return a.vigente_desde < b.vigente_desde ? 1 : -1; });
+    return vigentes[0] || {};
+  }
+
   function updateActoDinamico() {
     var acto = actosCache.find(function (a) { return a.id === document.getElementById('fActo').value; });
     var docsBox = document.getElementById('documentosPreview');
     var camposBox = document.getElementById('camposAdicionales');
+    var regla = reglaVigente(acto);
+
+    document.getElementById('lblMonto').textContent = regla.monto_es_mensual
+      ? 'Renta mensual (pesos)'
+      : regla.usa_valor_mas_alto ? 'Precio pactado o contraprestación (pesos; 0 si es a título gratuito)' : 'Monto (pesos)';
+    document.getElementById('bloqueValores').style.display = regla.usa_valor_mas_alto ? 'block' : 'none';
+    document.getElementById('bloqueExcepcion').style.display = regla.pregunta_excepcion ? 'block' : 'none';
+    document.getElementById('lblExcepcion').textContent = regla.pregunta_excepcion || '';
+    if (!regla.usa_valor_mas_alto) {
+      ['fValorCatastral', 'fValorComercial', 'fMontoGarantizado'].forEach(function (id) { document.getElementById(id).value = ''; });
+    }
+    if (!regla.pregunta_excepcion) document.getElementById('fAcreedorFin').value = '';
+
     if (!acto) { docsBox.textContent = ''; camposBox.innerHTML = ''; return; }
 
     var docs = acto.documentos_requeridos || [];
@@ -430,11 +478,13 @@
       '<h3 style="margin-top:18px;font-size:1.05rem;">Preguntas específicas de este acto</h3>' +
       campos.map(function (c, i) {
         var id = 'fExtra_' + i;
+        var req = c.requerido ? ' data-requerido="1" data-etiqueta="' + escapeHtml(c.etiqueta) + '"' : '';
+        var etiqueta = escapeHtml(c.etiqueta) + (c.requerido ? ' *' : '');
         if (c.tipo === 'select') {
-          return '<label>' + escapeHtml(c.etiqueta) + '</label><select id="' + id + '" data-clave="' + escapeHtml(c.clave) + '">' +
+          return '<label>' + etiqueta + '</label><select id="' + id + '" data-clave="' + escapeHtml(c.clave) + '"' + req + '>' +
             (c.opciones || []).map(function (o) { return '<option value="' + escapeHtml(o) + '">' + escapeHtml(o) + '</option>'; }).join('') + '</select>';
         }
-        return '<label>' + escapeHtml(c.etiqueta) + '</label><input id="' + id + '" data-clave="' + escapeHtml(c.clave) + '">';
+        return '<label>' + etiqueta + '</label><input id="' + id + '" data-clave="' + escapeHtml(c.clave) + '"' + req + '>';
       }).join('');
   }
   document.getElementById('fActo').addEventListener('change', updateActoDinamico);
@@ -536,7 +586,8 @@
   document.getElementById('btnNuevoExpediente').addEventListener('click', function () {
     document.getElementById('nuevoError').classList.remove('show');
     ['fDbaId', 'fRfc', 'fCurp', 'fNombreCliente', 'fDomicilio', 'fActividadEconomica', 'fOrigenRecursos',
-      'fDestinoRecursos', 'fMonto', 'fPepCargo', 'fPepDependencia', 'fPepPeriodo',
+      'fDestinoRecursos', 'fMonto', 'fValorCatastral', 'fValorComercial', 'fMontoGarantizado', 'fAcreedorFin',
+      'fPepCargo', 'fPepDependencia', 'fPepPeriodo',
       'fBcB_relacion', 'fBcB_datos', 'fBcC1_nombre', 'fBcC1_medio', 'fBcC1_id', 'fBcC1_nacionalidad',
       'fBcC2_nombre', 'fBcC2_medio', 'fBcD_partes', 'fBcD_beneficio', 'fBcD_nombre', 'fBcD_datos', 'fBcObservaciones']
       .forEach(function (id) { document.getElementById(id).value = ''; });
@@ -594,6 +645,21 @@
     if (!rfc && !curp) { errorBox.textContent = 'Captura RFC o CURP del cliente.'; errorBox.classList.add('show'); return; }
     if (!nombre) { errorBox.textContent = 'Falta el nombre o razón social del cliente.'; errorBox.classList.add('show'); return; }
     if (!monto) { errorBox.textContent = 'Falta el monto de la operación.'; errorBox.classList.add('show'); return; }
+
+    var actoSel = actosCache.find(function (a) { return a.id === document.getElementById('fActo').value; });
+    var reglaSel = reglaVigente(actoSel);
+    var acreedorFin = document.getElementById('fAcreedorFin').value;
+    if (reglaSel.pregunta_excepcion && !acreedorFin) {
+      errorBox.textContent = 'Responde: ' + reglaSel.pregunta_excepcion;
+      errorBox.classList.add('show'); return;
+    }
+    var faltaRequerido = Array.prototype.find.call(document.querySelectorAll('#camposAdicionales [data-requerido]'), function (el) { return !el.value.trim(); });
+    if (faltaRequerido) {
+      errorBox.textContent = 'Falta completar: ' + faltaRequerido.dataset.etiqueta + '.';
+      errorBox.classList.add('show'); return;
+    }
+    function numOrNull(id) { var v = document.getElementById(id).value; return v === '' ? null : v; }
+
     var bcConclusion = document.getElementById('fBcConclusion').value;
     var bcObservaciones = document.getElementById('fBcObservaciones').value.trim();
     if (bcConclusion !== 'si_existe' && !bcObservaciones) {
@@ -690,6 +756,10 @@
       dba_expediente_id: cuestionario.dba_expediente_id,
       monto_pesos: monto,
       forma_pago: document.getElementById('fFormaPago').value,
+      valor_catastral: reglaSel.usa_valor_mas_alto ? numOrNull('fValorCatastral') : null,
+      valor_comercial: reglaSel.usa_valor_mas_alto ? numOrNull('fValorComercial') : null,
+      monto_garantizado: reglaSel.usa_valor_mas_alto ? numOrNull('fMontoGarantizado') : null,
+      acreedor_financiero: reglaSel.pregunta_excepcion ? acreedorFin === 'si' : null,
       cuestionario: cuestionario
     }).select('id').single();
 
@@ -731,6 +801,10 @@
     html += '<dt>Notario</dt><dd>' + escapeHtml(exp.notario.nombre) + '</dd>';
     html += '<dt>Área</dt><dd>' + escapeHtml(exp.area) + '</dd>';
     html += '<dt>Monto</dt><dd>' + money(exp.monto_pesos) + ' — ' + escapeHtml(exp.forma_pago || '') + '</dd>';
+    if (exp.valor_catastral != null) html += '<dt>Valor catastral</dt><dd>' + money(exp.valor_catastral) + '</dd>';
+    if (exp.valor_comercial != null) html += '<dt>Valor comercial o de avalúo</dt><dd>' + money(exp.valor_comercial) + '</dd>';
+    if (exp.monto_garantizado != null) html += '<dt>Monto garantizado</dt><dd>' + money(exp.monto_garantizado) + '</dd>';
+    if (exp.acreedor_financiero != null) html += '<dt>A favor de institución financiera u organismo de vivienda</dt><dd>' + (exp.acreedor_financiero ? 'Sí' : 'No') + '</dd>';
     html += '</dl>';
 
     var cu = exp.cuestionario || {};
@@ -765,7 +839,14 @@
       html += '<h3 style="margin-top:20px;font-size:1rem;">Clasificación PLD</h3>';
       html += '<dl class="kv">';
       html += '<dt>Actividad vulnerable</dt><dd>' + (exp.es_actividad_vulnerable ? 'Sí' : 'No') + '</dd>';
-      html += '<dt>Genera Aviso</dt><dd>' + (exp.aplica_aviso ? 'Sí' : 'No') + (exp.monto_acumulado_detectado > 0 ? ' (incluye acumulado previo: ' + money(exp.monto_acumulado_detectado) + ' UMA×UMA aprox.)' : '') + '</dd>';
+      html += '<dt>Genera Aviso</dt><dd>' + (exp.aplica_aviso ? 'Sí' : 'No') + (exp.monto_acumulado_detectado > 0 ? ' (incluye acumulado previo: ' + fmtUma(exp.monto_acumulado_detectado) + ')' : '') + '</dd>';
+      if (exp.valor_base_aviso_pesos != null) {
+        html += '<dt>Valor base para el umbral</dt><dd>' + money(exp.valor_base_aviso_pesos) + ' (' + fmtUma(exp.valor_base_aviso_uma) + ') — ' +
+          escapeHtml(ORIGEN_BASE_LABEL[exp.valor_base_aviso_origen] || exp.valor_base_aviso_origen || '') + '</dd>';
+      }
+      if (exp.excepcion_financiera_aplicada) {
+        html += '<dt>Excepción</dt><dd>Aplicada: a favor de institución del sistema financiero u organismo público de vivienda</dd>';
+      }
       html += '<dt>Restricción de efectivo</dt><dd>' + (exp.aplica_restriccion_efectivo ? 'Sí — pago prohibido en efectivo' : 'No') + '</dd>';
       html += '<dt>Fundamento</dt><dd>' + escapeHtml(exp.fundamento_legal || '—') + '</dd>';
       html += '</dl>';
