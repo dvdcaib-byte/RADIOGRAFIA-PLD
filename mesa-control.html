@@ -543,7 +543,7 @@
           '<td>' + escapeHtml(r.acto ? r.acto.nombre : '—') + '</td>' +
           '<td>' + escapeHtml(r.notario ? r.notario.nombre : '—') + '</td>' +
           '<td>' + money(r.monto_pesos) + '</td>' +
-          '<td>' + badge(r.estatus) + '</td>' +
+          '<td>' + badge(r.estatus) + (r._pend ? ' <span style="color:var(--brick);font-size:0.75rem;font-weight:600;">⚠ ' + r._pend + ' coincidencia(s)</span>' : '') + '</td>' +
           '<td>' + fmtDate(r.created_at) + '</td></tr>';
       }).join('') + '</table>';
   }
@@ -565,6 +565,10 @@
       .order('created_at', { ascending: true });
     var rows = res.data || [];
     if (rows.length === 0) { el.innerHTML = '<p class="empty-state">No hay expedientes pendientes de revisión.</p>'; return; }
+    var pRes = await client.from('mc_listas_pendientes_v').select('expediente_id, pendientes');
+    var pendientes = {};
+    (pRes.data || []).forEach(function (p) { pendientes[p.expediente_id] = p.pendientes; });
+    rows.forEach(function (r) { r._pend = pendientes[r.id] || 0; });
     el.innerHTML = renderTable(rows, false);
     bindRowClicks(el);
   }
@@ -1201,6 +1205,106 @@
 
   // ---------- Detalle de expediente ----------
 
+  // Datos del Aviso (UIF) y personas del acto, para el detalle del expediente.
+  var ROL_ORDEN = ['solicitante', 'poderdante', 'apoderado', 'accionista', 'persona_moral_acciones', 'vendedor', 'comprador',
+    'fusionada', 'fusionante', 'escindente', 'escindida', 'fideicomitente', 'fideicomisario', 'cedente', 'cesionario',
+    'acreedor', 'deudor', 'garante', 'propietario'];
+  var ROL_LABEL = { solicitante: 'Solicitante', poderdante: 'Poderdante', apoderado: 'Apoderado', accionista: 'Accionista',
+    persona_moral_acciones: 'Sociedad', vendedor: 'Vendedor', comprador: 'Comprador', fusionada: 'Fusionada', fusionante: 'Fusionante',
+    escindente: 'Escindente', escindida: 'Escindida', fideicomitente: 'Fideicomitente', fideicomisario: 'Fideicomisario',
+    cedente: 'Cedente', cesionario: 'Cesionario', acreedor: 'Acreedor', deudor: 'Deudor', garante: 'Garante', propietario: 'Propietario' };
+
+  function descCat(cat, clave) {
+    var o = (uifCat[cat] || []).find(function (x) { return x.clave === clave; });
+    return o ? clave + ' — ' + o.descripcion : clave;
+  }
+  function metaCampos() {
+    var m = {};
+    Object.keys(XML_SPEC).forEach(function (t) {
+      XML_SPEC[t].campos.forEach(function (c) { m[c.k] = c; });
+      XML_SPEC[t].bloques.forEach(function (b) { b.extras.forEach(function (c) { m[c.k] = c; }); });
+    });
+    return m;
+  }
+  function valorLegible(c, v) {
+    if (!c) return String(v);
+    if (c.t === 'cat') return descCat(c.cat, v);
+    if (c.t === 'sino') return v === 'SI' ? 'Sí' : 'No';
+    if (c.t === 'monto') return /capital|monto|valor/.test(c.k) ? money(v) : Number(v).toLocaleString('es-MX');
+    return String(v);
+  }
+  function avisoYPartesHtml(exp, partes) {
+    if (!exp.fecha_operacion && !exp.numero_instrumento && !partes.length) return '';
+    var meta = metaCampos();
+    var h = '<h3 style="margin-top:20px;font-size:1rem;">Datos para el Aviso (UIF)</h3><dl class="kv">';
+    if (exp.fecha_operacion) h += '<dt>Fecha de la operación</dt><dd>' + escapeHtml(exp.fecha_operacion) + '</dd>';
+    if (exp.numero_instrumento) h += '<dt>Número de instrumento</dt><dd>' + escapeHtml(exp.numero_instrumento) + '</dd>';
+    if (exp.tipo_alerta) h += '<dt>Tipo de alerta</dt><dd>' + escapeHtml(descCat('tipo_alerta', exp.tipo_alerta)) +
+      (exp.descripcion_alerta ? ' — ' + escapeHtml(exp.descripcion_alerta) : '') + '</dd>';
+    h += '<dt>Prioridad</dt><dd>' + (exp.prioridad === 2 ? '2 — 24 horas' : '1 — Normal') + '</dd>';
+    Object.keys(exp.datos_xml || {}).forEach(function (k) {
+      h += '<dt>' + escapeHtml(meta[k] ? meta[k].l : k) + '</dt><dd>' + escapeHtml(valorLegible(meta[k], exp.datos_xml[k])) + '</dd>';
+    });
+    h += '</dl>';
+    if (partes.length) {
+      var ordenadas = partes.slice().sort(function (a, b) {
+        return (ROL_ORDEN.indexOf(a.rol) - ROL_ORDEN.indexOf(b.rol)) || (a.orden - b.orden);
+      });
+      h += '<h3 style="margin-top:20px;font-size:1rem;">Personas del acto</h3><dl class="kv">';
+      ordenadas.forEach(function (p) {
+        var nombre = p.tipo_persona === 'fisica' ? [p.nombre, p.apellido_paterno, p.apellido_materno].join(' ') : p.denominacion_razon;
+        var ids = [p.rfc ? 'RFC ' + p.rfc : '', p.curp ? 'CURP ' + p.curp : ''].filter(Boolean).join(', ');
+        var ex = Object.keys(p.atributos || {}).map(function (k) {
+          return (meta[k] ? meta[k].l : k) + ': ' + valorLegible(meta[k], p.atributos[k]);
+        }).join('; ');
+        h += '<dt>' + escapeHtml((ROL_LABEL[p.rol] || p.rol) + ' ' + p.orden) + '</dt><dd>' + escapeHtml(nombre || '—') + (ids ? ' — ' + escapeHtml(ids) : '') +
+          ' <span class="hint" style="display:inline">(' + escapeHtml(NOMBRE_TIPO[p.tipo_persona] || p.tipo_persona) +
+          (p.fuente_datos === 'ocr' ? ', datos leídos de un documento y revisados' : '') + ')</span>' +
+          (ex ? '<br><span class="hint">' + escapeHtml(ex) + '</span>' : '') + '</dd>';
+      });
+      h += '</dl>';
+    }
+    return h;
+  }
+
+  // Consulta a listas de sanciones: solo la ve la REC.
+  var FUENTE_LABEL = { ofac_sdn: 'OFAC (SDN)', onu_consolidada: 'ONU (lista consolidada)' };
+  function fmtFechaHora(s) { try { return new Date(s).toLocaleString('es-MX'); } catch (e) { return String(s); } }
+  function listasHtml(consulta, coincidencias) {
+    var h = '<h3 style="margin-top:20px;font-size:1rem;">Consulta a listas de sanciones</h3>';
+    if (!consulta) return h + '<p class="hint">Se consulta automáticamente al enviar el expediente a revisión.</p>';
+    var vers = Object.keys(consulta.versiones || {}).map(function (k) {
+      return (FUENTE_LABEL[k] || k) + ' (actualizada ' + fmtFechaHora(consulta.versiones[k].actualizada_en) + ')';
+    }).join('; ');
+    h += '<p class="hint">Se consultaron ' + consulta.personas_consultadas + ' persona(s) el ' + escapeHtml(fmtFechaHora(consulta.ejecutada_en)) +
+      '. Listas: ' + escapeHtml(vers) + '.</p>';
+    if (!coincidencias.length) return h + '<div class="notice-box"><strong>Sin coincidencias.</strong></div>';
+    coincidencias.forEach(function (c) {
+      var pend = c.estatus === 'pendiente';
+      h += '<div class="persona" data-coinc="' + c.id + '">' +
+        '<div class="persona-head"><strong>' + escapeHtml(c.persona) + ': ' + escapeHtml(c.nombre_consultado) + '</strong>' +
+        '<span class="hint" style="display:inline">' + (pend ? '⚠ pendiente' : c.estatus === 'confirmada' ? 'confirmada' : 'descartada') + '</span></div>' +
+        '<p style="margin:4px 0;"><strong>' + escapeHtml(c.nombre_lista) + '</strong>' +
+        (c.es_alias ? ' (coincidió con el alias «' + escapeHtml(c.nombre_coincidente || '') + '»)' : '') + '</p>' +
+        '<p class="hint">' + escapeHtml(FUENTE_LABEL[c.fuente] || c.fuente) + ' · id ' + escapeHtml(c.uid_lista) +
+        ' · puntaje ' + Number(c.puntaje).toFixed(2) + ' · por ' + escapeHtml(c.motivo || '') +
+        (c.fechas_nacimiento && c.fechas_nacimiento.length ? ' · nacimiento en la lista: ' + escapeHtml(c.fechas_nacimiento.join(', ')) : '') +
+        (c.nacionalidades && c.nacionalidades.length ? ' · nacionalidad: ' + escapeHtml(c.nacionalidades.join(', ')) : '') +
+        (c.programas ? ' · programa: ' + escapeHtml(c.programas) : '') + '</p>' +
+        (c.remarks ? '<p class="hint">' + escapeHtml(c.remarks.length > 300 ? c.remarks.slice(0, 300) + '…' : c.remarks) + '</p>' : '');
+      if (pend) {
+        h += '<label>Motivo de tu decisión *</label><textarea data-coinc-motivo placeholder="Ej. Fecha de nacimiento y nacionalidad distintas; no es la misma persona"></textarea>' +
+          '<div class="btn-row"><button type="button" class="btn btn-sm btn-teal" data-resolver="descartada">Es otra persona (descartar)</button>' +
+          '<button type="button" class="btn btn-sm btn-brick" data-resolver="confirmada">Es la misma persona (confirmar)</button></div>';
+      } else {
+        h += '<p class="hint"><strong>' + (c.estatus === 'confirmada' ? 'Confirmada' : 'Descartada') + '</strong> el ' +
+          escapeHtml(fmtFechaHora(c.resuelto_en)) + ': ' + escapeHtml(c.comentario || '') + '</p>';
+      }
+      h += '</div>';
+    });
+    return h + '<div class="error-box" id="coincError"></div>';
+  }
+
   async function openDetalle(id) {
     currentExpedienteId = id;
     showView('detalle');
@@ -1216,6 +1320,19 @@
     var docsRes = await client.from('mc_documentos').select('tipo_documento, nombre_archivo').eq('expediente_id', id);
     var docs = docsRes.data || [];
     var docsRequeridos = exp.acto.documentos_requeridos || [];
+    var partesRes = await client.from('mc_expediente_partes')
+      .select('rol, orden, tipo_persona, nombre, apellido_paterno, apellido_materno, rfc, curp, denominacion_razon, atributos, fuente_datos')
+      .eq('expediente_id', id);
+    var partes = partesRes.data || [];
+    var consultaListas = null, coincidencias = [];
+    if (isRec) {
+      var cRes = await client.from('mc_listas_consultas').select('*').eq('expediente_id', id).order('ejecutada_en', { ascending: false }).limit(1);
+      consultaListas = (cRes.data && cRes.data[0]) || null;
+      if (consultaListas) {
+        var kRes = await client.from('mc_listas_coincidencias').select('*').eq('consulta_id', consultaListas.id).order('puntaje', { ascending: false });
+        coincidencias = kRes.data || [];
+      }
+    }
 
     var esDueno = exp.abogado_id === session.user.id;
     var puedeEditar = esDueno && (exp.estatus === 'borrador' || exp.estatus === 'rechazado');
@@ -1258,6 +1375,9 @@
     html += '<dt>Instrumento combinado</dt><dd>' + (cu.instrumento_incluye_otro_acto ? 'Sí — incluye otro acto además del principal' : 'No') + '</dd>';
     html += '<dt>Clasificación de riesgo</dt><dd>' + escapeHtml(cu.clasificacion_riesgo || '—') + '</dd>';
     html += '</dl>';
+
+    html += avisoYPartesHtml(exp, partes);
+    if (isRec) html += listasHtml(consultaListas, coincidencias);
 
     if (exp.estatus === 'rechazado' && exp.motivo_rechazo) {
       html += '<div class="notice-box notice-vulnerable"><strong>Motivo de rechazo:</strong> ' + escapeHtml(exp.motivo_rechazo) + '</div>';
@@ -1313,6 +1433,20 @@
     }
 
     el.innerHTML = html;
+
+    el.querySelectorAll('[data-resolver]').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var card = btn.closest('[data-coinc]');
+        var errorBox = document.getElementById('coincError');
+        errorBox.classList.remove('show');
+        var motivo = card.querySelector('[data-coinc-motivo]').value.trim();
+        if (motivo.length < 10) { errorBox.textContent = 'Escribe el motivo de tu decisión (mínimo 10 caracteres).'; errorBox.classList.add('show'); return; }
+        btn.disabled = true;
+        var r = await client.rpc('mc_resolver_coincidencia', { p_id: card.dataset.coinc, p_decision: btn.dataset.resolver, p_comentario: motivo });
+        if (r.error) { errorBox.textContent = r.error.message; errorBox.classList.add('show'); btn.disabled = false; return; }
+        openDetalle(id);
+      });
+    });
 
     el.querySelectorAll('.docUpload').forEach(function (input) {
       input.addEventListener('change', function () { subirDocumento(id, input.dataset.tipo, input.files[0]); });
