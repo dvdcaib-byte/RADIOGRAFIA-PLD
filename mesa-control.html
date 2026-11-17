@@ -91,6 +91,15 @@
   .error-box { margin-top: 14px; font-size: 0.85rem; color: var(--brick); background: var(--brick-soft);
     border-radius: 4px; padding: 10px 12px; display: none; }
   .error-box.show { display: block; }
+  .persona { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; margin: 10px 0; background: var(--paper); }
+  .persona-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .persona input.sugerido, .persona select.sugerido { background: var(--gold-soft); border-color: var(--gold); }
+  .persona-ocr { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .ocr-row { display: flex; gap: 8px; align-items: center; }
+  .ocr-row input[type=file] { flex: 1; }
+  .btn-sm { padding: 6px 10px; font-size: 0.75rem; }
+  .btn-link { background: none; border: none; color: var(--brick); cursor: pointer; font-size: 0.8rem; text-decoration: underline; width: auto; padding: 0; }
+  .xbloque h4, #bloqueXml h4 { margin: 16px 0 4px; font-size: 0.95rem; }
   .notice-box { margin-top: 14px; font-size: 0.85rem; border-radius: 4px; padding: 10px 12px; }
   .notice-vulnerable { background: var(--brick-soft); color: var(--brick); }
   .notice-ok { background: var(--teal-soft); color: var(--teal); }
@@ -188,6 +197,8 @@
         <div><label>Origen de los recursos</label><input id="fOrigenRecursos"></div>
         <div><label>Destino de los recursos</label><input id="fDestinoRecursos"></div>
       </div>
+
+      <div id="bloqueXml" style="display:none;"></div>
 
       <h3 style="margin-top:22px;font-size:1.05rem;">Beneficiario controlador — Formato 2</h3>
       <p class="hint">Con fundamento en el art. 3 fracc. III LFPIORPI, art. 14 de su Reglamento y art. 3 fracc. VII de las RCG.</p>
@@ -428,13 +439,14 @@
     }).join('');
 
     var actosRes = await client.from('mc_actos_juridicos')
-      .select('id, nombre, documentos_requeridos, campos_adicionales, reglas:mc_reglas_pld(usa_valor_mas_alto, pregunta_excepcion, monto_es_mensual, vigente_desde, vigente_hasta)')
+      .select('id, nombre, tipo_xml, aviso_via, documentos_requeridos, campos_adicionales, reglas:mc_reglas_pld(usa_valor_mas_alto, pregunta_excepcion, monto_es_mensual, vigente_desde, vigente_hasta)')
       .eq('activo', true).order('nombre');
     actosCache = actosRes.data || [];
     var selActo = document.getElementById('fActo');
     selActo.innerHTML = actosCache.map(function (a) {
       return '<option value="' + a.id + '">' + escapeHtml(a.nombre) + '</option>';
     }).join('');
+    await loadUifCatalogos();
     updateActoDinamico();
   }
 
@@ -454,6 +466,7 @@
     var docsBox = document.getElementById('documentosPreview');
     var camposBox = document.getElementById('camposAdicionales');
     var regla = reglaVigente(acto);
+    renderBloqueXml();
 
     document.getElementById('lblMonto').textContent = regla.monto_es_mensual
       ? 'Renta mensual (pesos)'
@@ -667,6 +680,9 @@
       errorBox.classList.add('show'); return;
     }
 
+    var xml = recolectarXml();
+    if (xml && xml.error) { errorBox.textContent = xml.error; errorBox.classList.add('show'); return; }
+
     var btn = this;
     btn.disabled = true; btn.textContent = 'Creando…';
 
@@ -747,7 +763,7 @@
       campos_acto: camposExtra
     };
 
-    var insExp = await client.from('mc_expedientes').insert({
+    var payloadExp = {
       notario_id: document.getElementById('fNotario').value,
       area: document.getElementById('fArea').value,
       cliente_id: clienteId,
@@ -761,7 +777,9 @@
       monto_garantizado: reglaSel.usa_valor_mas_alto ? numOrNull('fMontoGarantizado') : null,
       acreedor_financiero: reglaSel.pregunta_excepcion ? acreedorFin === 'si' : null,
       cuestionario: cuestionario
-    }).select('id').single();
+    };
+    if (xml) { Object.keys(xml.cols).forEach(function (k) { payloadExp[k] = xml.cols[k]; }); }
+    var insExp = await client.from('mc_expedientes').insert(payloadExp).select('id').single();
 
     btn.disabled = false; btn.textContent = 'Crear borrador';
 
@@ -769,8 +787,417 @@
       errorBox.textContent = 'No se pudo crear el expediente: ' + insExp.error.message;
       errorBox.classList.add('show'); return;
     }
+    if (xml && xml.partes.length) {
+      var errPartes = await guardarPartes(insExp.data.id, xml.partes, actoSel);
+      if (errPartes) alert('El expediente se creó, pero ' + errPartes + '.');
+    }
     openDetalle(insExp.data.id);
   });
+
+  // ---------- Datos estructurados para el Aviso (XML de la UIF) ----------
+  // Cada persona del acto se captura a mano o con lectura automática de un documento.
+  // La lectura es siempre una sugerencia: la persona la revisa y la confirma antes de guardar.
+
+  var uifCat = {};
+  async function loadUifCatalogos() {
+    var r = await client.from('mc_uif_catalogos').select('catalogo, clave, descripcion, orden').eq('vigente', true).order('orden').limit(2000);
+    uifCat = {};
+    (r.data || []).forEach(function (x) { (uifCat[x.catalogo] = uifCat[x.catalogo] || []).push(x); });
+  }
+  function optCat(cat, sel) {
+    return '<option value="">Selecciona…</option>' + (uifCat[cat] || []).map(function (o) {
+      return '<option value="' + escapeHtml(o.clave) + '"' + (o.clave === sel ? ' selected' : '') + '>' + escapeHtml(o.clave + ' — ' + o.descripcion) + '</option>';
+    }).join('');
+  }
+
+  // El XML de la UIF solo acepta mayúsculas A-Z y Ñ, sin acentos.
+  function xmlNorm(s) {
+    return String(s || '').toUpperCase().replace(/Ñ/g, '\u0001').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\u0001/g, 'Ñ');
+  }
+  var NORM = {
+    nombre: function (s) { return xmlNorm(s).replace(/[^A-ZÑ ]/g, ' ').replace(/\s+/g, ' ').trim(); },
+    denom: function (s) { return xmlNorm(s).replace(/[^A-ZÑ0-9 #\-.&,_@'()]/g, '').replace(/\s+/g, ' ').trim(); },
+    id: function (s) { return xmlNorm(s).replace(/[^A-ZÑ0-9&]/g, ''); },
+    folio: function (s) { return xmlNorm(s).replace(/[^A-Z0-9_-]/g, ''); },
+    desc: function (s) { return xmlNorm(s).replace(/[^A-ZÑ0-9 \-.,':\/$]/g, '').replace(/\s+/g, ' ').trim(); }
+  };
+  var RX = {
+    nombre: /^[A-ZÑ ]{1,200}$/, denom: /^[A-ZÑ\d #\-.&,_@'()]{1,254}$/,
+    rfcF: /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/, rfcM: /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/,
+    curp: /^[A-Z]{4}\d{6}[MH][A-Z]{5}\d{2}$/, instr: /^[A-Z\d_-]{1,20}$/, folio: /^[A-Z\d_-]{1,200}$/,
+    monto: /^\d{1,14}(\.\d{1,2})?$/
+  };
+  var TIPOS_PERSONA = ['fisica', 'moral', 'fideicomiso'];
+  var NOMBRE_TIPO = { fisica: 'Persona física', moral: 'Persona moral', fideicomiso: 'Fideicomiso' };
+
+  // Qué se captura por cada tipo de Aviso. Las claves coinciden con las etiquetas del XML (fep.xsd).
+  var XML_SPEC = {
+    otorgamiento_poder: {
+      titulo: 'Otorgamiento de poder',
+      bloques: [
+        { rol: 'poderdante', etiqueta: 'Poderdante', plural: 'Poderdantes', min: 1, tipos: TIPOS_PERSONA, simple: false, extras: [] },
+        { rol: 'apoderado', etiqueta: 'Apoderado', plural: 'Apoderados', min: 1, tipos: TIPOS_PERSONA, simple: true,
+          extras: [{ k: 'tipo_poder', l: 'Tipo de poder', t: 'cat', cat: 'tipo_poder', req: true }] }
+      ],
+      campos: []
+    },
+    constitucion_personas_morales: {
+      titulo: 'Constitución de persona moral',
+      bloques: [
+        { rol: 'accionista', etiqueta: 'Accionista', plural: 'Accionistas', min: 1, tipos: TIPOS_PERSONA, simple: true,
+          extras: [
+            { k: 'cargo_accionista', l: 'Cargo dentro de la persona moral', t: 'cat', cat: 'cargo_accionista', req: true },
+            { k: 'numero_acciones', l: 'Número de acciones o partes sociales', t: 'monto', req: true }
+          ] }
+      ],
+      campos: [
+        { k: 'tipo_persona_moral', l: 'Tipo de persona moral', t: 'cat', cat: 'tipo_persona_moral', req: true },
+        { k: 'tipo_persona_moral_otra', l: 'Especifica el tipo de persona moral', t: 'denom', req: true, si: { k: 'tipo_persona_moral', v: '99' } },
+        { k: 'denominacion_razon', l: 'Denominación o razón social', t: 'denom', req: true },
+        { k: 'giro_mercantil', l: 'Giro mercantil, actividad u objeto social', t: 'cat', cat: 'giro_mercantil', req: true },
+        { k: 'folio_mercantil', l: 'Folio mercantil (si ya existe)', t: 'folio' },
+        { k: 'numero_total_acciones', l: 'Número total de acciones o partes sociales', t: 'monto', req: true },
+        { k: 'entidad_federativa', l: 'Entidad federativa', t: 'cat', cat: 'entidad_federativa', req: true },
+        { k: 'consejo_vigilancia', l: '¿Tiene consejo de vigilancia?', t: 'sino', req: true },
+        { k: 'motivo_constitucion', l: 'Motivo de la constitución', t: 'cat', cat: 'motivo_constitucion', req: true },
+        { k: 'capital_fijo', l: 'Capital social fijo (pesos)', t: 'monto', req: true },
+        { k: 'capital_variable', l: 'Capital social variable (pesos)', t: 'monto' }
+      ]
+    }
+  };
+
+  function actoActual() {
+    return actosCache.find(function (a) { return a.id === document.getElementById('fActo').value; });
+  }
+  function valorDe(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+  function campoSpecHtml(c, atributo) {
+    var attr = atributo + '="' + c.k + '"' + (c.req ? ' data-req="1"' : '') + ' data-tipo="' + c.t + '" data-et="' + escapeHtml(c.l) + '"';
+    var ctl;
+    if (c.t === 'cat') ctl = '<select ' + attr + '>' + optCat(c.cat, '') + '</select>';
+    else if (c.t === 'sino') ctl = '<select ' + attr + '><option value="">Selecciona…</option><option value="SI">Sí</option><option value="NO">No</option></select>';
+    else if (c.t === 'monto') ctl = '<input ' + attr + ' inputmode="decimal" placeholder="0.00">';
+    else ctl = '<input ' + attr + ' data-norm="' + (c.t === 'folio' ? 'folio' : 'denom') + '">';
+    var si = c.si ? ' data-si-k="' + c.si.k + '" data-si-v="' + c.si.v + '" style="display:none;"' : '';
+    return '<div class="xcampo"' + si + '><label>' + escapeHtml(c.l) + (c.req ? ' *' : '') + '</label>' + ctl + '</div>';
+  }
+
+  function inputF(f, label, norm, extra) {
+    return '<div><label>' + label + '</label><input data-f="' + f + '"' + (norm ? ' data-norm="' + norm + '"' : '') + (extra || '') + '></div>';
+  }
+
+  var personaSeq = 0;
+  function personaHtml(b, removible) {
+    var n = ++personaSeq;
+    var h = '<div class="persona" data-rol="' + b.rol + '" data-simple="' + (b.simple ? '1' : '') + '" data-et="' + escapeHtml(b.etiqueta) + '" id="persona' + n + '">';
+    h += '<div class="persona-head"><strong>' + escapeHtml(b.etiqueta) + '</strong>' +
+      (removible ? '<button type="button" class="btn-link" data-del>Quitar</button>' : '') + '</div>';
+    h += '<div style="' + (b.tipos.length > 1 ? '' : 'display:none;') + '"><label>Tipo de persona</label><select data-f="tipo">' +
+      b.tipos.map(function (t) { return '<option value="' + t + '">' + NOMBRE_TIPO[t] + '</option>'; }).join('') + '</select></div>';
+    h += '<div class="persona-ocr"><label>Lectura automática del documento (opcional)</label>' +
+      '<div class="ocr-row"><input type="file" data-ocrfile accept="image/jpeg,image/png,image/webp,application/pdf">' +
+      '<button type="button" class="btn btn-sm" data-ocr disabled>Leer documento</button></div>' +
+      '<p class="hint" data-ocrmsg>Sube la identificación (o el acta, si es persona moral) para llenar los campos; también puedes capturarlos a mano. ' +
+      'Lo que se lea es una sugerencia que debes revisar. El archivo se envía a un proveedor de IA para leerlo y se guarda en el expediente.</p></div>';
+    h += '<div data-g="fisica"><div class="field-row">' + inputF('nombre', 'Nombre(s) *', 'nombre') + inputF('apellido_paterno', 'Apellido paterno *', 'nombre') + '</div>' +
+      '<div class="field-row">' + inputF('apellido_materno', 'Apellido materno * (si no tiene, XXXX)', 'nombre') +
+      '<div><label>Fecha de nacimiento</label><input type="date" data-f="fecha_nacimiento"></div></div>' +
+      '<div class="field-row">' + inputF('rfc', 'RFC con homoclave', 'id', ' maxlength="13"') + inputF('curp', 'CURP', 'id', ' maxlength="18"') + '</div>' +
+      '<div class="field-row"><div><label>País de nacionalidad *</label><select data-f="pais_nacionalidad">' + optCat('pais_nacionalidad', 'MX') + '</select></div>' +
+      (b.simple ? '<div></div>' : '<div><label>Actividad económica *</label><select data-f="actividad_economica">' + optCat('actividad_economica', '') + '</select></div>') + '</div></div>';
+    h += '<div data-g="moral" style="display:none;">' + inputF('denominacion_razon', 'Denominación o razón social *', 'denom') +
+      '<div class="field-row"><div><label>Fecha de constitución</label><input type="date" data-f="fecha_constitucion"></div>' + inputF('rfc', 'RFC con homoclave', 'id', ' maxlength="12"') + '</div>' +
+      '<div class="field-row"><div><label>País de nacionalidad *</label><select data-f="pais_nacionalidad">' + optCat('pais_nacionalidad', 'MX') + '</select></div>' +
+      (b.simple ? '<div></div>' : '<div><label>Giro mercantil *</label><select data-f="giro_mercantil">' + optCat('giro_mercantil', '') + '</select></div>') + '</div></div>';
+    h += '<div data-g="fideicomiso" style="display:none;">' + inputF('denominacion_razon', 'Denominación o razón social *', 'denom') +
+      '<div class="field-row">' + inputF('rfc', 'RFC con homoclave', 'id', ' maxlength="12"') + inputF('identificador_fideicomiso', 'Identificador del fideicomiso', 'folio') + '</div></div>';
+    if (b.extras && b.extras.length) {
+      h += '<div class="field-row">' + b.extras.map(function (c) { return campoSpecHtml(c, 'data-x'); }).join('') + '</div>';
+    }
+    h += '<label class="revisado" data-rev style="display:none;align-items:center;gap:8px;margin-top:10px;"><input type="checkbox" data-f="revisado" style="width:auto;">' +
+      '<span style="margin:0;">Revisé los datos sugeridos por la lectura automática y son correctos</span></label>';
+    return h + '</div>';
+  }
+
+  var specActual = null;
+  function renderBloqueXml() {
+    var box = document.getElementById('bloqueXml');
+    var acto = actoActual();
+    specActual = null;
+    if (!acto || (!acto.tipo_xml && acto.aviso_via !== 'declaranot')) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = 'block';
+    if (acto.aviso_via === 'declaranot') {
+      box.innerHTML = '<h3 style="margin-top:22px;font-size:1.05rem;">Aviso de este acto</h3><p class="hint">El aviso de este acto (constitución o transmisión de derechos reales sobre inmuebles) se presenta por DeclaraNOT con los plazos fiscales; el sistema no genera archivo XML para él (clasificación en borrador, validar con la REC).</p>';
+      return;
+    }
+    var spec = XML_SPEC[acto.tipo_xml];
+    if (!spec) {
+      box.innerHTML = '<h3 style="margin-top:22px;font-size:1.05rem;">Datos para el Aviso (UIF)</h3><p class="hint">La captura estructurada de este tipo de acto se está habilitando; por ahora el expediente se guarda solo con el cuestionario.</p>';
+      return;
+    }
+    specActual = spec;
+    var h = '<h3 style="margin-top:22px;font-size:1.05rem;">Datos para el Aviso (UIF): ' + escapeHtml(spec.titulo) + '</h3>' +
+      '<p class="hint">Cada persona se puede capturar a mano o cargando su documento para que el sistema sugiera los datos. Los nombres se convierten a mayúsculas sin acentos, como exige la UIF.</p>';
+    h += '<div class="field-row"><div><label>Fecha de la operación *</label><input type="date" id="xFechaOperacion"></div>' +
+      '<div><label>Número de instrumento (escritura) *</label><input id="xInstrumento" data-norm="folio" placeholder="Ej. 35509"></div></div>';
+    h += '<div class="field-row"><div><label>Tipo de alerta *</label><select id="xAlerta">' + optCat('tipo_alerta', '100') + '</select></div>' +
+      '<div><label>Prioridad del aviso</label><select id="xPrioridad"><option value="1">1 — Normal</option><option value="2">2 — 24 horas</option></select></div></div>';
+    h += '<div id="xAlertaDescBox" style="display:none;"><label>Descripción de la alerta *</label><input id="xAlertaDesc" data-norm="desc"></div>';
+    h += '<h4>Persona que solicita la formalización del instrumento</h4><div id="xLista_solicitante">' +
+      personaHtml({ rol: 'solicitante', etiqueta: 'Solicitante', tipos: ['fisica'], simple: true, extras: [] }, false) + '</div>';
+    if (spec.campos.length) {
+      h += '<h4>Datos del acto</h4><div class="field-row">' + spec.campos.map(function (c) { return campoSpecHtml(c, 'data-k'); }).join('') + '</div>';
+    }
+    spec.bloques.forEach(function (b) {
+      h += '<div class="xbloque"><h4>' + escapeHtml(b.plural) + '</h4><div id="xLista_' + b.rol + '">';
+      for (var i = 0; i < b.min; i++) h += personaHtml(b, false);
+      h += '</div><button type="button" class="btn btn-sm" data-add="' + b.rol + '">+ Agregar ' + escapeHtml(b.etiqueta.toLowerCase()) + '</button></div>';
+    });
+    box.innerHTML = h;
+  }
+
+  function actualizarCondicionales() {
+    document.querySelectorAll('#bloqueXml [data-si-k]').forEach(function (w) {
+      var ctl = document.querySelector('#bloqueXml [data-k="' + w.dataset.siK + '"]');
+      w.style.display = ctl && ctl.value === w.dataset.siV ? '' : 'none';
+    });
+  }
+
+  function cambiarTipo(card) {
+    var tipo = card.querySelector('[data-f="tipo"]').value;
+    card.querySelectorAll('[data-g]').forEach(function (g) { g.style.display = g.dataset.g === tipo ? '' : 'none'; });
+  }
+
+  function leerBase64(file) {
+    return new Promise(function (ok, ko) {
+      var fr = new FileReader();
+      fr.onload = function () { ok(String(fr.result).split(',')[1]); };
+      fr.onerror = function () { ko(fr.error); };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  async function ocrPersona(card) {
+    var file = card._file;
+    var msg = card.querySelector('[data-ocrmsg]');
+    var btn = card.querySelector('[data-ocr]');
+    if (!file) return;
+    var tipo = card.querySelector('[data-f="tipo"]').value;
+    if (tipo === 'fideicomiso') { msg.textContent = 'La lectura automática no aplica a fideicomisos; captura los datos a mano.'; return; }
+    if (file.size > 6291456) { msg.textContent = 'El archivo supera 6 MB para la lectura automática; captura los datos a mano o usa un archivo más ligero.'; return; }
+    btn.disabled = true;
+    msg.textContent = 'Leyendo el documento…';
+    try {
+      var b64 = await leerBase64(file);
+      var res = await client.functions.invoke('extraer-datos-identificacion', {
+        body: { archivo_base64: b64, media_type: file.type, modo: tipo === 'fisica' ? 'identificacion' : 'persona_moral' }
+      });
+      if (res.error || !res.data || !res.data.sugerencia) {
+        var motivo = 'No se pudo leer el documento.';
+        if (res.error && res.error.context && typeof res.error.context.json === 'function') {
+          try { var j = await res.error.context.json(); if (j && j.error) motivo = j.error; } catch (e) { /* sin detalle */ }
+        }
+        motivo = motivo.replace(/\s*Captura los datos a mano\.?\s*$/, '');
+        msg.textContent = motivo + ' Captura los datos a mano; el archivo se guardará igual en el expediente.';
+        btn.disabled = false;
+        return;
+      }
+      var g = card.querySelector('[data-g="' + tipo + '"]');
+      var llenos = 0;
+      Object.keys(res.data.sugerencia).forEach(function (k) {
+        var v = res.data.sugerencia[k];
+        if (!v) return;
+        var el = g.querySelector('[data-f="' + k + '"]');
+        if (!el) return;
+        if (el.dataset.norm && NORM[el.dataset.norm]) v = NORM[el.dataset.norm](v);
+        if (el.tagName === 'SELECT' && !Array.prototype.some.call(el.options, function (o) { return o.value === v; })) return;
+        el.value = v;
+        el.classList.add('sugerido');
+        llenos++;
+      });
+      if (llenos) {
+        card.dataset.fuente = 'ocr';
+        card.querySelector('[data-rev]').style.display = 'flex';
+        msg.textContent = 'Se llenaron ' + llenos + ' campos (resaltados). Revísalos y corrige lo que haga falta.';
+      } else {
+        msg.textContent = 'No se reconocieron datos en el documento; captura los datos a mano.';
+      }
+    } catch (e) {
+      msg.textContent = 'No se pudo leer el documento. Captura los datos a mano.';
+    }
+    btn.disabled = false;
+  }
+
+  function agregarPersona(rol) {
+    var b = specActual && specActual.bloques.find(function (x) { return x.rol === rol; });
+    if (!b) return;
+    document.getElementById('xLista_' + rol).insertAdjacentHTML('beforeend', personaHtml(b, true));
+  }
+
+  (function enlazarBloqueXml() {
+    var box = document.getElementById('bloqueXml');
+    box.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-add]');
+      if (t) { agregarPersona(t.dataset.add); return; }
+      t = e.target.closest('[data-del]');
+      if (t) { var c = t.closest('.persona'); c.parentNode.removeChild(c); return; }
+      t = e.target.closest('[data-ocr]');
+      if (t) ocrPersona(t.closest('.persona'));
+    });
+    box.addEventListener('change', function (e) {
+      var el = e.target;
+      if (el.matches('[data-f="tipo"]')) cambiarTipo(el.closest('.persona'));
+      else if (el.matches('[data-ocrfile]')) {
+        var card = el.closest('.persona');
+        card._file = el.files[0] || null;
+        card.querySelector('[data-ocr]').disabled = !card._file;
+      } else if (el.id === 'xAlerta') {
+        document.getElementById('xAlertaDescBox').style.display = el.value === '9999' ? '' : 'none';
+      } else if (el.matches('[data-k]')) actualizarCondicionales();
+    });
+    box.addEventListener('focusout', function (e) {
+      var m = e.target.dataset && e.target.dataset.norm;
+      if (m && NORM[m] && e.target.value) e.target.value = NORM[m](e.target.value);
+    });
+    box.addEventListener('input', function (e) { e.target.classList.remove('sugerido'); });
+  })();
+
+  // Lee y valida un campo descrito en XML_SPEC; devuelve {v} o {error}.
+  function leerCampoSpec(el) {
+    var et = el.dataset.et, t = el.dataset.tipo, v = el.value.trim();
+    if (!v) return el.dataset.req ? { error: 'Falta completar: ' + et + '.' } : { v: null };
+    if (t === 'denom') { v = NORM.denom(v); if (!RX.denom.test(v)) return { error: 'Revisa: ' + et + '.' }; }
+    else if (t === 'folio') { v = NORM.folio(v); if (!RX.folio.test(v)) return { error: 'Revisa: ' + et + ' (letras, números, guion).' }; }
+    else if (t === 'monto') { if (!RX.monto.test(v)) return { error: 'Revisa: ' + et + ' (número con hasta 2 decimales).' }; v = Number(v).toFixed(2); }
+    return { v: v };
+  }
+
+  function leerPersona(card, orden) {
+    var tipo = card.querySelector('[data-f="tipo"]').value;
+    var g = card.querySelector('[data-g="' + tipo + '"]');
+    var d = {};
+    g.querySelectorAll('[data-f]').forEach(function (el) { var v = el.value.trim(); d[el.dataset.f] = v === '' ? null : v; });
+    var etiqueta = card.dataset.et + ' ' + orden;
+    var simple = !!card.dataset.simple;
+    var err = null;
+    var e = etiqueta + ': ';
+    if (tipo === 'fisica') {
+      if (!d.nombre || !RX.nombre.test(d.nombre)) err = e + 'falta el nombre (solo letras).';
+      else if (!d.apellido_paterno || !RX.nombre.test(d.apellido_paterno)) err = e + 'falta el apellido paterno (si no tiene, escribe XXXX).';
+      else if (!d.apellido_materno || !RX.nombre.test(d.apellido_materno)) err = e + 'falta el apellido materno (si no tiene, escribe XXXX).';
+      else if (d.apellido_paterno === 'XXXX' && d.apellido_materno === 'XXXX') err = e + 'los dos apellidos no pueden ser XXXX.';
+      else if (!d.fecha_nacimiento && !d.rfc && !d.curp) err = e + 'captura fecha de nacimiento, RFC o CURP.';
+      else if (d.rfc && !RX.rfcF.test(d.rfc)) err = e + 'el RFC de persona física debe tener 13 caracteres con homoclave.';
+      else if (d.curp && !RX.curp.test(d.curp)) err = e + 'la CURP debe tener 18 caracteres.';
+      else if (!simple && !d.actividad_economica) err = e + 'selecciona la actividad económica.';
+    } else {
+      if (!d.denominacion_razon || !RX.denom.test(d.denominacion_razon)) err = e + 'falta la denominación o razón social.';
+      else if (d.rfc && !RX.rfcM.test(d.rfc)) err = e + 'el RFC de persona moral debe tener 12 caracteres con homoclave.';
+      else if (tipo === 'fideicomiso' && d.identificador_fideicomiso && !RX.folio.test(d.identificador_fideicomiso)) err = e + 'revisa el identificador del fideicomiso.';
+      else if (tipo === 'moral' && !simple && !d.giro_mercantil) err = e + 'selecciona el giro mercantil.';
+    }
+    if (!err && tipo !== 'fideicomiso' && !d.pais_nacionalidad) err = e + 'selecciona el país de nacionalidad.';
+    var atr = {};
+    if (!err) {
+      Array.prototype.some.call(card.querySelectorAll('[data-x]'), function (el) {
+        var r = leerCampoSpec(el);
+        if (r.error) { err = e + r.error; return true; }
+        if (r.v !== null) atr[el.dataset.x] = r.v;
+        return false;
+      });
+    }
+    var rev = card.querySelector('[data-f="revisado"]');
+    var fuente = card.dataset.fuente === 'ocr' ? 'ocr' : 'manual';
+    if (!err && fuente === 'ocr' && !(rev && rev.checked)) err = e + 'marca que revisaste los datos sugeridos por la lectura automática.';
+    return { error: err, parte: { rol: card.dataset.rol, orden: orden, tipo: tipo, d: d, atributos: atr, fuente: fuente, file: card._file || null } };
+  }
+
+  // Devuelve null si el acto no genera Aviso por XML, {error} si algo falta, o {cols, partes}.
+  function recolectarXml() {
+    var acto = actoActual();
+    if (!acto || !acto.tipo_xml || !specActual) return null;
+    var fecha = valorDe('xFechaOperacion');
+    if (!fecha) return { error: 'Falta la fecha de la operación.' };
+    var instr = NORM.folio(valorDe('xInstrumento'));
+    if (!RX.instr.test(instr)) return { error: 'Falta el número de instrumento (letras, números y guion; máximo 20 caracteres).' };
+    var alerta = valorDe('xAlerta');
+    if (!alerta) return { error: 'Selecciona el tipo de alerta (100 si no hay alerta).' };
+    var prioridad = valorDe('xPrioridad');
+    if (prioridad === '2' && alerta === '100') return { error: 'Un aviso de 24 horas no puede llevar el tipo de alerta 100 (sin alerta).' };
+    var desc = null;
+    if (alerta === '9999') {
+      desc = NORM.desc(valorDe('xAlertaDesc'));
+      if (!desc) return { error: 'Describe la alerta (tipo "Otra alerta").' };
+    }
+    var datos = {};
+    var errCampo = null;
+    Array.prototype.some.call(document.querySelectorAll('#bloqueXml [data-k]'), function (el) {
+      var w = el.closest('.xcampo');
+      if (w && w.dataset.siK && w.style.display === 'none') return false;
+      var r = leerCampoSpec(el);
+      if (r.error) { errCampo = r.error; return true; }
+      if (r.v !== null) datos[el.dataset.k] = r.v;
+      return false;
+    });
+    if (errCampo) return { error: errCampo };
+
+    var partes = [];
+    var cards = document.querySelectorAll('#bloqueXml .persona');
+    var conteo = {};
+    for (var i = 0; i < cards.length; i++) {
+      var rol = cards[i].dataset.rol;
+      conteo[rol] = (conteo[rol] || 0) + 1;
+      var r = leerPersona(cards[i], conteo[rol]);
+      if (r.error) return { error: r.error };
+      partes.push(r.parte);
+    }
+    return {
+      cols: { fecha_operacion: fecha, numero_instrumento: instr, prioridad: Number(prioridad), tipo_alerta: alerta, descripcion_alerta: desc, datos_xml: datos },
+      partes: partes
+    };
+  }
+
+  async function subirArchivoSilencioso(expId, tipo, nombre, file) {
+    if (file.size > 26214400) return 'excede 25 MB';
+    var path = expId + '/' + tipo + '/' + nombre;
+    var up = await client.storage.from('mc-documentos').upload(path, file, { upsert: true });
+    if (up.error) return up.error.message;
+    var ins = await client.from('mc_documentos').insert({
+      expediente_id: expId, tipo_documento: tipo, storage_path: path,
+      nombre_archivo: nombre, tamano_bytes: file.size, subido_por: session.user.id
+    });
+    return ins.error ? ins.error.message : null;
+  }
+
+  // Guarda las personas del acto y sube los documentos que se cargaron para la lectura automática.
+  async function guardarPartes(expId, partes, acto) {
+    var rows = partes.map(function (p) {
+      var d = p.d;
+      return {
+        expediente_id: expId, rol: p.rol, orden: p.orden, tipo_persona: p.tipo,
+        nombre: d.nombre || null, apellido_paterno: d.apellido_paterno || null, apellido_materno: d.apellido_materno || null,
+        fecha_nacimiento: d.fecha_nacimiento || null, rfc: d.rfc || null, curp: d.curp || null,
+        pais_nacionalidad: d.pais_nacionalidad || 'MX', actividad_economica: d.actividad_economica || null,
+        denominacion_razon: d.denominacion_razon || null, fecha_constitucion: d.fecha_constitucion || null,
+        giro_mercantil: d.giro_mercantil || null, identificador_fideicomiso: d.identificador_fideicomiso || null,
+        atributos: p.atributos, fuente_datos: p.fuente
+      };
+    });
+    var ins = await client.from('mc_expediente_partes').insert(rows);
+    if (ins.error) return 'las personas no se guardaron (' + ins.error.message + ')';
+    var requeridos = (acto && acto.documentos_requeridos) || [];
+    var tipoIdent = requeridos.find(function (x) { return x.indexOf('identificacion') === 0; }) || 'identificacion_oficial';
+    var tipoActa = requeridos.indexOf('acta_constitutiva') >= 0 ? 'acta_constitutiva' : 'otro_documento';
+    var fallos = [];
+    for (var i = 0; i < partes.length; i++) {
+      var p = partes[i];
+      if (!p.file) continue;
+      var nombre = p.rol + p.orden + '_' + p.file.name.replace(/[^A-Za-z0-9._-]/g, '_');
+      var e = await subirArchivoSilencioso(expId, p.tipo === 'fisica' ? tipoIdent : tipoActa, nombre, p.file);
+      if (e) fallos.push(p.file.name + ': ' + e);
+    }
+    return fallos.length ? 'no se pudieron subir ' + fallos.length + ' documento(s): ' + fallos.join('; ') : null;
+  }
 
   // ---------- Detalle de expediente ----------
 
