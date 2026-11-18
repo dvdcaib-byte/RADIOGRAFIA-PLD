@@ -138,6 +138,7 @@
     <button class="tab-btn active" data-view="misExpedientes">Mis expedientes</button>
     <button class="tab-btn" data-view="cola" id="tabCola" style="display:none">Cola de revisión</button>
     <button class="tab-btn" data-view="vulnerables" id="tabVulnerables" style="display:none">Actividades vulnerables</button>
+    <button class="tab-btn" data-view="avisosXml" id="tabAvisosXml" style="display:none">Avisos XML</button>
   </div>
 
   <div id="viewMisExpedientes" class="view active">
@@ -153,6 +154,27 @@
 
   <div id="viewVulnerables" class="view">
     <div class="card"><div id="tablaVulnerables"><p class="empty-state">Cargando…</p></div></div>
+  </div>
+
+  <div id="viewAvisosXml" class="view">
+    <div class="card">
+      <h2>Avisos para la UIF (archivo XML)</h2>
+      <p class="hint">Genera el archivo mensual de Avisos de un notario con los expedientes autorizados cuya operación cae en el mes. El sistema solo genera y valida el archivo; se presenta ante la UIF con la e.firma de la notaría, a más tardar el día 17 del mes siguiente (Ley, art. 23). Los avisos de inmuebles no van aquí: se presentan por DeclaraNOT.</p>
+      <div class="field-row">
+        <div><label>Notario</label><select id="axNotario"></select></div>
+        <div><label>Mes de las operaciones</label><input type="month" id="axMes"></div>
+      </div>
+      <p class="hint" id="axLimite"></p>
+      <label style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="axOmitir" style="width:auto;">
+        <span style="margin:0;">Dejar fuera los avisos de tipos que todavía no se generan (queda anotado; hay que presentarlos por otra vía)</span>
+      </label>
+      <div class="btn-row"><button class="btn" id="btnGenerarXml">Generar archivo</button></div>
+      <div class="error-box" id="axError"></div>
+      <div id="axResultado"></div>
+      <h3 style="margin-top:22px;font-size:1rem;">Archivos generados</h3>
+      <div id="axHistorial"><p class="empty-state">Cargando…</p></div>
+    </div>
   </div>
 
   <div id="viewNuevo" class="view">
@@ -419,6 +441,7 @@
     if (btn.dataset.view === 'misExpedientes') loadMisExpedientes();
     if (btn.dataset.view === 'cola') loadCola();
     if (btn.dataset.view === 'vulnerables') loadVulnerables();
+    if (btn.dataset.view === 'avisosXml') loadAvisosXml();
   });
   document.querySelectorAll('[data-back]').forEach(function (b) {
     b.addEventListener('click', function () { showView(b.dataset.back); loadMisExpedientes(); });
@@ -431,7 +454,7 @@
   // ---------- Catálogos ----------
 
   async function loadCatalogos() {
-    var notRes = await client.from('mc_notarios').select('id, nombre, prefijo_folio').eq('activo', true).order('nombre');
+    var notRes = await client.from('mc_notarios').select('id, nombre, prefijo_folio, rfc').eq('activo', true).order('nombre');
     notariosCache = notRes.data || [];
     var selNotario = document.getElementById('fNotario');
     selNotario.innerHTML = notariosCache.map(function (n) {
@@ -559,17 +582,30 @@
   async function loadCola() {
     var el = document.getElementById('tablaCola');
     el.innerHTML = '<p class="empty-state">Cargando…</p>';
-    var res = await client.from('mc_expedientes')
-      .select('id, folio, estatus, monto_pesos, created_at, cliente:mc_clientes(nombre_razon_social), acto:mc_actos_juridicos(nombre), notario:mc_notarios(nombre)')
-      .eq('estatus', 'enviado')
-      .order('created_at', { ascending: true });
-    var rows = res.data || [];
-    if (rows.length === 0) { el.innerHTML = '<p class="empty-state">No hay expedientes pendientes de revisión.</p>'; return; }
+    var campos = 'id, folio, estatus, monto_pesos, created_at, cliente:mc_clientes(nombre_razon_social), acto:mc_actos_juridicos(nombre), notario:mc_notarios(nombre)';
+
+    // Coincidencias con listas de sanciones por resolver: la REC las ve de inmediato, aunque el expediente siga en borrador.
     var pRes = await client.from('mc_listas_pendientes_v').select('expediente_id, pendientes');
     var pendientes = {};
     (pRes.data || []).forEach(function (p) { pendientes[p.expediente_id] = p.pendientes; });
+    var idsPend = Object.keys(pendientes);
+    var html = '';
+    if (idsPend.length) {
+      var eRes = await client.from('mc_expedientes').select(campos).in('id', idsPend).order('created_at', { ascending: true });
+      var filasPend = (eRes.data || []).filter(function (r) { return r.estatus !== 'autorizado'; });
+      filasPend.forEach(function (r) { r._pend = pendientes[r.id]; });
+      if (filasPend.length) {
+        html += '<h3 style="margin:0 0 6px;font-size:1rem;color:var(--brick);">⚠ Coincidencias con listas de sanciones por resolver</h3>' +
+          '<p class="hint">Se detectaron al capturar; no esperan a que el expediente se envíe. Abre cada uno para resolverlas.</p>' + renderTable(filasPend, false);
+      }
+    }
+
+    var res = await client.from('mc_expedientes').select(campos).eq('estatus', 'enviado').order('created_at', { ascending: true });
+    var rows = res.data || [];
     rows.forEach(function (r) { r._pend = pendientes[r.id] || 0; });
-    el.innerHTML = renderTable(rows, false);
+    html += '<h3 style="margin:18px 0 6px;font-size:1rem;">Expedientes en revisión</h3>' +
+      (rows.length ? renderTable(rows, false) : '<p class="empty-state">No hay expedientes pendientes de revisión.</p>');
+    el.innerHTML = html;
     bindRowClicks(el);
   }
 
@@ -1506,6 +1542,111 @@
     openDetalle(id);
   }
 
+  // ---------- Avisos XML para la UIF (REC) ----------
+
+  function descargarTexto(nombre, texto) {
+    var blob = new Blob([texto], { type: 'application/xml;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+  var MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  function mesLegible(aaaamm) { return MESES_ES[Number(aaaamm.slice(4)) - 1] + ' de ' + aaaamm.slice(0, 4); }
+  function actualizarLimiteXml() {
+    var v = document.getElementById('axMes').value;
+    var el = document.getElementById('axLimite');
+    if (!v) { el.textContent = ''; return; }
+    var y = Number(v.slice(0, 4)), m = Number(v.slice(5, 7));
+    var sig = m === 12 ? [y + 1, 1] : [y, m + 1];
+    el.textContent = 'Fecha límite de presentación de este mes: 17 de ' + MESES_ES[sig[1] - 1] + ' de ' + sig[0] + '.';
+  }
+  document.getElementById('axMes').addEventListener('change', actualizarLimiteXml);
+
+  async function loadAvisosXml() {
+    var sel = document.getElementById('axNotario');
+    if (!sel.options.length) {
+      sel.innerHTML = notariosCache.map(function (n) { return '<option value="' + n.id + '">' + escapeHtml(n.nombre) + ' (' + escapeHtml(n.prefijo_folio) + ')</option>'; }).join('');
+    }
+    var mes = document.getElementById('axMes');
+    if (!mes.value) { mes.value = new Date().toISOString().slice(0, 7); }
+    actualizarLimiteXml();
+
+    var el = document.getElementById('axHistorial');
+    var res = await client.from('mc_avisos_xml')
+      .select('id, mes_reportado, version, total_avisos, sha256, estatus, acuse_folio, generado_en, notario:mc_notarios(nombre)')
+      .order('generado_en', { ascending: false }).limit(30);
+    var rows = res.data || [];
+    if (!rows.length) { el.innerHTML = '<p class="empty-state">Todavía no se ha generado ningún archivo.</p>'; return; }
+    el.innerHTML = '<table><tr><th>Mes</th><th>Notario</th><th>Versión</th><th>Avisos</th><th>Huella SHA-256</th><th>Estatus</th><th></th></tr>' +
+      rows.map(function (r) {
+        return '<tr><td>' + escapeHtml(mesLegible(r.mes_reportado)) + '</td><td>' + escapeHtml(r.notario ? r.notario.nombre : '—') + '</td>' +
+          '<td>' + r.version + '</td><td>' + r.total_avisos + '</td>' +
+          '<td><span class="hint" style="display:inline" title="' + escapeHtml(r.sha256) + '">' + escapeHtml(r.sha256.slice(0, 12)) + '…</span></td>' +
+          '<td>' + (r.estatus === 'presentado' ? 'Presentado' + (r.acuse_folio ? ' (acuse ' + escapeHtml(r.acuse_folio) + ')' : '') : 'Generado') + '</td>' +
+          '<td><button class="btn btn-sm" data-ax-descargar="' + r.id + '">Descargar</button> ' +
+          (r.estatus === 'presentado' ? '' : '<button class="btn btn-sm btn-teal" data-ax-presentado="' + r.id + '">Marcar presentado</button>') + '</td></tr>';
+      }).join('') + '</table>';
+  }
+
+  document.getElementById('axHistorial').addEventListener('click', async function (e) {
+    var d = e.target.closest('[data-ax-descargar]');
+    var p = e.target.closest('[data-ax-presentado]');
+    if (d) {
+      var r = await client.from('mc_avisos_xml').select('xml, mes_reportado, version, notario:mc_notarios(rfc)').eq('id', d.dataset.axDescargar).single();
+      if (r.error || !r.data) { alert('No se pudo descargar el archivo.'); return; }
+      descargarTexto('FEP_' + ((r.data.notario && r.data.notario.rfc) || 'notario') + '_' + r.data.mes_reportado + '_v' + r.data.version + '.xml', r.data.xml);
+    } else if (p) {
+      var acuse = window.prompt('Folio de acuse de la UIF (opcional). Confirma que este archivo ya se presentó:');
+      if (acuse === null) return;
+      var u = await client.from('mc_avisos_xml').update({ estatus: 'presentado', acuse_folio: acuse.trim() || null }).eq('id', p.dataset.axPresentado);
+      if (u.error) { alert('No se pudo actualizar: ' + u.error.message); return; }
+      loadAvisosXml();
+    }
+  });
+
+  document.getElementById('btnGenerarXml').addEventListener('click', async function () {
+    var errorBox = document.getElementById('axError');
+    var out = document.getElementById('axResultado');
+    errorBox.classList.remove('show');
+    out.innerHTML = '';
+    var notarioId = document.getElementById('axNotario').value;
+    var mesIso = document.getElementById('axMes').value;
+    if (!notarioId || !mesIso) { errorBox.textContent = 'Elige el notario y el mes.'; errorBox.classList.add('show'); return; }
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Generando…';
+    var res = await client.functions.invoke('generar-xml-fep', {
+      body: { notario_id: notarioId, mes: mesIso.replace('-', ''), omitir_no_soportados: document.getElementById('axOmitir').checked }
+    });
+    btn.disabled = false; btn.textContent = 'Generar archivo';
+    if (res.error || !res.data || !res.data.xml) {
+      var cuerpo = null;
+      if (res.error && res.error.context && typeof res.error.context.json === 'function') {
+        try { cuerpo = await res.error.context.json(); } catch (e) { /* sin detalle */ }
+      }
+      errorBox.textContent = (cuerpo && cuerpo.error) || 'No se pudo generar el archivo.';
+      errorBox.classList.add('show');
+      if (cuerpo && cuerpo.errores && cuerpo.errores.length) {
+        out.innerHTML = '<p class="hint">Corrige esto y vuelve a generar:</p><ul>' + cuerpo.errores.map(function (m) { return '<li>' + escapeHtml(m) + '</li>'; }).join('') + '</ul>';
+      }
+      return;
+    }
+    var d = res.data;
+    var notario = notariosCache.find(function (n) { return n.id === notarioId; });
+    out.innerHTML = '<div class="notice-box"><strong>Archivo generado</strong> — ' + d.total_avisos + ' aviso(s), versión ' + d.version +
+      '. Huella SHA-256: <span class="hint" style="display:inline">' + escapeHtml(d.sha256) + '</span>. Ya cumple el esquema de la UIF; se presenta con la e.firma de la notaría.' +
+      (d.total_avisos === 0 ? ' Es un informe sin operaciones (en ceros).' : '') + '</div>' +
+      (d.omitidos && d.omitidos.length ? '<p class="hint"><strong>Quedaron fuera (hay que presentarlos por otra vía):</strong></p><ul>' + d.omitidos.map(function (m) { return '<li>' + escapeHtml(m) + '</li>'; }).join('') + '</ul>' : '') +
+      '<div class="btn-row"><button class="btn" id="axDescargarNuevo">Descargar XML</button></div>';
+    document.getElementById('axDescargarNuevo').addEventListener('click', function () {
+      descargarTexto('FEP_' + ((notario && notario.rfc) || 'notario') + '_' + mesIso.replace('-', '') + '_v' + d.version + '.xml', d.xml);
+    });
+    loadAvisosXml();
+  });
+
   // ---------- Init ----------
 
   async function init() {
@@ -1519,7 +1660,7 @@
     isRec = roles.some(function (r) { return r.rol === 'rec'; });
     notarioIds = roles.filter(function (r) { return r.rol === 'notario'; }).map(function (r) { return r.notario_id; });
 
-    if (isRec) document.getElementById('tabCola').style.display = '';
+    if (isRec) { document.getElementById('tabCola').style.display = ''; document.getElementById('tabAvisosXml').style.display = ''; }
     if (isRec || notarioIds.length > 0) document.getElementById('tabVulnerables').style.display = '';
 
     await loadCatalogos();
