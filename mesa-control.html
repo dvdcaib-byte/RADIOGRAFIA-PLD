@@ -1524,6 +1524,10 @@
 
     await loadCatalogos();
     await loadMisExpedientes();
+
+    // Enlace de los correos de alerta: ?expediente=<id> abre ese expediente.
+    var qExp = new URLSearchParams(location.search).get('expediente');
+    if (qExp && /^[0-9a-f-]{36}$/i.test(qExp)) openDetalle(qExp);
   }
 
   // access-gate.js corre su checkAccess() de forma async; esperamos a que
